@@ -29,6 +29,20 @@ if result.get("need_ocr"):
     result = skill.execute(order_input=result["image_path"], order_type="image", ocr_result=ocr_result)
 ```
 
+### ⚠️ AI调用规范（防止跳过主入口）
+
+**必须通过主入口调用**：`skill.execute()` 是唯一公开接口，AI 不得直接调用内部工具函数。
+
+**正确流程**：
+1. 读取 `TOOLS.md` 确认数据库配置
+2. 通过 `execute()` 主入口执行订单处理
+3. 禁止跳过主入口直接调用 `tools_parse()`、`tools_transform()`、`_match_store()`、`_match_sku()` 等内部函数
+
+**原因**：直接调用底层函数会绕过：
+- 参数校验和初始化逻辑
+- 数据库连接管理（db_config）
+- 错误处理和状态管理
+
 ### 返回结果
 
 ```python
@@ -93,6 +107,7 @@ skill.execute() 返回 need_ocr=True
 - **多货主支持**：不默认货主，通过门店名匹配获取
 - **映射置信度**：SKU匹配<80%需人工确认
 - **版本管理**：修改 skill 时需更新 VERSION + CHANGELOG，并通过 git 保留证据
+- **主入口调用**：必须通过 `execute()` 调用，禁止直接调用内部工具函数
 
 ---
 

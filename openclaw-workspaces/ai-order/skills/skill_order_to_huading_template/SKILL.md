@@ -546,35 +546,42 @@ if result.get("need_store_confirm"):
 
 ---
 
-## ⚠️ 版本管理规范（v5.8）
+## ⚠️ AI调用规范（防止跳过主入口）
 
-### 核心原则
+### 问题描述
 
-**方案1：版本文件（VERSION + CHANGELOG）**
+AI 在处理订单时，可能直接调用底层工具函数（如 `tools_parse()`、`tools_transform()`、`_match_store()`、`_match_sku()` 等），而跳过了 Skill 的主入口 `execute()`。这会导致：
+- 绕过 Skill 的参数校验和初始化逻辑
+- 绕过数据库连接管理和配置
+- 绕过错误处理和状态管理
+- 无法正确使用 db_config 配置
 
-- 每次对 Skill 的修改都必须更新 `VERSION` 文件（语义化版本）
-- 所有变更记录在 `CHANGELOG.md` 中，包含：版本号、日期、修改内容、对话背景 session ID
-- 版本格式：`主版本.次版本.修订号`（如 5.8.0）
-  - 修订号：修复/提示词微调
-  - 次版本：新增功能/流程调整
-  - 主版本：重大重构/接口变化
+### 解决方案
 
-**方案2：修改验证机制**
+**方案1：修改 Skill 结构（技术层面）**
 
-- 每次修改后执行 `git add` + `git commit`，保留修改证据
-- 用户可通过 `git log --oneline -5` 查看最近修改
-- 用户可通过 `git diff` 对比变更内容
+在 `__init__.py` 中，对所有内部工具函数添加 `@tool_lock` 装饰器或 `__tools__` 元组声明，禁止 AI 直接调用：
 
-### 操作流程
+```python
+class OrderToHuadingTemplate:
+    # 声明 AI 可调用的公开接口
+    __公开接口__ = ['execute']
+    
+    # 内部工具函数（AI 不得直接调用）
+    def _tools_parse(self, ...):  # ← AI 不应直接调用
+    def _tools_transform(self, ...):  # ← AI 不应直接调用
+    def _match_store(self, ...):  # ← AI 不应直接调用
+    def _match_sku(self, ...):  # ← AI 不应直接调用
+```
 
-当你在对话中提出修改 Skill 的需求时：
+**方案2：检查 TOOLS.md 配置（流程层面）**
 
-1. **我先读** `VERSION` 确认当前版本
-2. **我执行修改**
-3. **更新 VERSION**：如有版本号变更
-4. **记录 CHANGELOG**：写明修改内容 + session ID
-5. **git commit**：保留证据
-6. **告知你**：已完成，可通过 git 验证
+AI 在执行任何 Skill 操作前，必须先读取并检查 `TOOLS.md` 配置：
+1. **读取** `TOOLS.md` 确认数据库连接配置
+2. **确认** Skill 的正确使用方式（`execute()` 主入口）
+3. **禁止** 跳过主入口直接调用内部函数
+
+---
 
 ### 版本历史表（快速查阅）
 
