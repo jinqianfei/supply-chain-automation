@@ -1,0 +1,52 @@
+# 小江溪·江西菜 字段映射规则
+customer_name: "小江溪·江西菜"
+description: "小江溪配送明细表字段映射规则"
+
+field_aliases:
+  # 商品
+  product_name:
+    - "品名"
+    - "商品名称"
+    - "商品名"
+
+  product_spec:
+    - "规格"
+    - "包装规格"
+
+  quantity:
+    - "配送数量"
+    - "叫货数量"
+    - "数量"
+
+  unit:
+    - "单位"
+    - "箱"
+    - "件"
+
+  remark:
+    - "配送备注"
+    - "备注"
+
+  # 门店
+  store_name:
+    - "门店"
+
+  # 日期
+  order_date:
+    - "叫货日期"
+    - "配送日期"
+    - "日期"
+
+  # 仓库
+  warehouse:
+    - "仓库"
+    - "配送仓库"
+
+  # 运输
+  extra_notes:
+    - "运输方式"
+
+validation:
+  required:
+    - product_name
+    - quantity

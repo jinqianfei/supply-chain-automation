@@ -1,0 +1,8 @@
+# 数据库连接配置
+# 从 .env 文件读取，此处为默认值占位
+database:
+  host: localhost
+  port: 5432
+  database: neo
+  user: jinqianfei
+  password: ""
