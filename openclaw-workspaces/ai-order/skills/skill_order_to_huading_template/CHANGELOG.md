@@ -20,6 +20,34 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - 本次修改的对话背景：5.9.1 增量 patch（仅 bump VERSION）被 reset 撤销，但 5.9.0 主体（技术锁）保留
 - SKILL.md 头 5.9 与 VERSION/CHANGELOG 此前未同步，本次补齐
 
+### Phase 1 — 自适应学习系统 (2026-06-08)
+
+#### Added
+- **`events/` 事件总线**：极简进程内 EventBus（40 行，零外部依赖），支持 on/off/emit/clear
+- **`learn/` 反馈采集器**：`FeedbackCollector` 订阅 10 个事件并写入数据库
+  - `order_feedback` 主表（订单级处理反馈）
+  - `order_corrections` 子表（结构化用户纠正记录）
+  - `layer_success_rate` 统计表（动态计算 5+6 层匹配成功率）
+  - 3 个 view：`v_daily_feedback_stats` / `v_layer_success_rate`
+- **`scripts/version_check.sh`**：启动时核对 VERSION/SKILL.md/CHANGELOG 三处版本号一致
+- **`scripts/test_event_pipeline.py`**：4 项端到端测试（EventBus / Collector / DB 写入 / 模块集成）
+
+#### Changed
+- **`__init__.py`**：埋入 6 个 `EventBus.emit()` 调用（4 个事件 × 多门店/单门店两处）
+  - `store_confirm_needed`（门店需确认）
+  - `store_confirmed`（门店已确认）
+  - `order_complete`（订单完成）
+  - `user_modified`（用户修改字段）
+- **`__init__.py` 顶部**：增加 EventBus 懒加载导入 + `try/except ImportError` 保护
+- **`__init__.py` execute() 入口**：生成 `order_session_id` (uuid4) + `_started_ms` 计时
+- **数据库 `order_feedback` 表**：新增 `data_source TEXT` 列（追踪数据来源）
+- **`version_check.sh`**：从 `grep -P` 改为 `grep -E`（兼容 BSD grep，macOS 默认）
+- **SKILL.md 头**：版本号从 `5.9` 修正为 `5.9.0`，与 VERSION/CHANGELOG 对齐
+
+#### Noted
+- 本次只做 Phase 1（数据采集），Phase 2（自动别名学习） / Phase 3（健康度评估）未实施
+- 6 个 emit 中，store_confirm_needed / store_confirmed 各 2 处（多门店版+单门店版），order_complete / user_modified 各 1 处
+
 ---
 
 ## [5.8.0] - 2026-06-01
