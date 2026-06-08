@@ -2055,6 +2055,61 @@ class OrderToHuadingTemplate:
                 # 用户消息
                 "message": friendly_msg
             }
+            # v5.9.0 Phase 1：emit 订单完成事件
+            if _HAS_EVENT_BUS:
+                try:
+                    _elapsed_ms = int(time.time() * 1000) - _started_ms
+                    _first_store = (all_store_results[0] if all_store_results else {}).get("store_info", {}) or {}
+                    _total_skus = sum(len(r.get("sku_results") or []) for r in all_store_results)
+                    _auto_matched = sum(1 for r in all_store_results for s in (r.get("sku_results") or []) if (s.get("match_score") or 0) >= 0.9)
+                    EventBus.emit("order_complete", {
+                        "session_id": order_session_id,
+                        "timestamp": time.time(),
+                        "order_type": order_type,
+                        "store": {
+                            "store_code": _first_store.get("store_code", ""),
+                            "store_name": _first_store.get("store_name", ""),
+                            "owner_code": _first_store.get("owner_code", ""),
+                        },
+                        "sku_summary": {
+                            "total": _total_skus,
+                            "auto_matched": _auto_matched,
+                            "user_confirmed": 0,
+                            "user_corrected": 0,
+                            "unmatched": total_unmatched,
+                        },
+                        "match_rates": {
+                            "store_match_rate": 1.0 if confirmed_store else 0.0,
+                            "sku_match_rate": (_auto_matched / _total_skus) if _total_skus else 0.0,
+                        },
+                        "user_modified": False,
+                        "user_confirmed": not has_issues,
+                        "processing_time_ms": _elapsed_ms,
+                        "skill_version": self.__class__.VERSION if hasattr(self.__class__, 'VERSION') else "5.9.0",
+                        "owner_code": _first_store.get("owner_code", ""),
+                        "source_file": order_input if isinstance(order_input, str) else "",
+                        "output_file": output_file,
+                    })
+                except Exception as _e:
+                    print(f"[WARN] emit order_complete failed: {_e}", flush=True)
+            return {
+                "success": True,
+                "output_file": output_file,
+                "file_name": os.path.basename(output_file),
+                "download_url": _get_download_url(output_file),
+                "order_no": order_data.get("order_no", ""),
+                "store_names": store_names,
+                "store_count": len(all_store_results),
+                "item_count": total_items,
+                "matched_count": total_items - total_unmatched,
+                "unmatched_count": total_unmatched,
+                "unmatched_items": all_unmatched,
+                "extracted_from": extracted_from,
+                "review_data": review_data,
+                "has_issues": has_issues,
+                "all_store_results": all_store_results,
+                "message": friendly_msg
+            }
 
         except Exception as e:
             return {
