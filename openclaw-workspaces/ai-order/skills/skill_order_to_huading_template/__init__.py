@@ -11,7 +11,20 @@ skill-order-to-huading-template
 import os
 import re
 import datetime
+import time
+import uuid
 from typing import Dict, Any, Optional, Union, List, Tuple
+
+# ── v5.9.0 Phase 1：事件总线 + 反馈采集器（懒加载，单例）────────
+try:
+    from events.bus import EventBus
+    from learn.collector import init_feedback_collector, get_feedback_collector
+    _HAS_EVENT_BUS = True
+except ImportError:
+    _HAS_EVENT_BUS = False
+    EventBus = None
+    init_feedback_collector = None
+    get_feedback_collector = None
 class OrderSkillError(Exception):
     """订单映射Skill专用异常"""
     def __init__(self, code: str, message: str, detail: str = ""):
@@ -1608,6 +1621,15 @@ class OrderToHuadingTemplate:
             - extracted_from: 输入来源（excel/image/pdf/text）
             - message: 消息
         """
+        # ── v5.9.0 Phase 1：本次调用的 session_id + 反馈采集器初始化 ─────
+        order_session_id = str(uuid.uuid4())
+        _started_ms = int(time.time() * 1000)
+        if _HAS_EVENT_BUS and get_feedback_collector() is None:
+            try:
+                init_feedback_collector(self.db_config)
+            except Exception as _e:
+                print(f"[WARN] init_feedback_collector failed: {_e}", flush=True)
+
         try:
             # 自动检测类型
             if order_type == "auto":
