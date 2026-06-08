@@ -1764,6 +1764,18 @@ class OrderToHuadingTemplate:
                     # 门店匹配：用户已确认门店时跳过匹配流程
                     if confirmed_store:
                         si = confirmed_store
+                        # v5.9.0 Phase 1：emit 门店已确认事件
+                        if _HAS_EVENT_BUS:
+                            EventBus.emit("store_confirmed", {
+                                "session_id": order_session_id,
+                                "timestamp": time.time(),
+                                "store_name_submitted": store_name_for_match,
+                                "selected_store": si,
+                                "from_candidates": bool(si.get("store_code")),
+                                "top_similarity": float(si.get("similarity", 1.0) or 1.0),
+                                "match_type": si.get("match_type", "unknown"),
+                                "user_response_text": "user_provided_confirmed_store",
+                            })
                     else:
                         si = _call_match_store(
                             store_name=store_name_for_match,
@@ -1890,6 +1902,18 @@ class OrderToHuadingTemplate:
 
                 if confirmed_store:
                     store_info = confirmed_store
+                    # v5.9.0 Phase 1：emit 门店已确认事件（单门店版）
+                    if _HAS_EVENT_BUS:
+                        EventBus.emit("store_confirmed", {
+                            "session_id": order_session_id,
+                            "timestamp": time.time(),
+                            "store_name_submitted": store_name_val or order_data.get("store_name", ""),
+                            "selected_store": store_info,
+                            "from_candidates": bool(store_info.get("store_code")),
+                            "top_similarity": float(store_info.get("similarity", 1.0) or 1.0),
+                            "match_type": store_info.get("match_type", "unknown"),
+                            "user_response_text": "user_provided_confirmed_store",
+                        })
                 else:
                     store_info = _call_match_store(
                         store_name=store_name_val,
