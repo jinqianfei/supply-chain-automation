@@ -473,7 +473,236 @@ db_config = {
 
 ---
 
-## 8. 调用示例
+## 8. Phase 1：反馈采集系统（自适应学习）⭐ 2026-06-08 新增
+
+### 8.1 概述
+
+**目的**：收集订单处理过程中的用户反馈和纠正数据，为后续算法优化提供数据支撑。
+
+**核心组件**：
+- `events/` 事件总线（40行，零依赖）
+- `learn/` 反馈采集器（订阅 10 个事件）
+
+### 8.2 事件类型
+
+| 事件名 | 触发时机 | 采集数据 |
+|--------|----------|----------|
+| `store_confirm_needed` | 门店匹配完成，待用户确认 | 门店名、候选列表、相似度 |
+| `store_confirmed` | 用户确认门店匹配 | 确认的门店、确认时间 |
+| `store_corrected` | 用户纠正门店匹配 | 原始匹配、用户修正 |
+| `sku_confirm_needed` | SKU映射完成，待用户确认 | 商品名、匹配结果、置信度 |
+| `sku_confirmed` | 用户确认SKU映射 | 确认的SKU、确认时间 |
+| `sku_corrected` | 用户纠正SKU映射 | 原始匹配、用户修正 |
+| `order_complete` | 订单处理完成（生成Excel）| 订单ID、完成时间、处理结果 |
+| `order_cancelled` | 用户取消订单处理 | 取消原因、取消时间 |
+| `user_modified` | 用户手动修改映射结果 | 修改字段、修改前/后值 |
+| `alert_raised` | 触发置信度告警 | 告警类型、商品名、置信度 |
+
+### 8.3 数据库表
+
+#### order_feedback（订单级反馈）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | SERIAL | 主键 |
+| `session_id` | VARCHAR | 会话ID |
+| `order_input_hash` | VARCHAR | 订单输入指纹 |
+| `owner_code` | VARCHAR | 货主ID |
+| `store_confirmed` | BOOLEAN | 门店是否确认 |
+| `store_corrected` | BOOLEAN | 门店是否被纠正 |
+| `sku_confirmed` | BOOLEAN | SKU是否确认 |
+| `sku_corrected` | BOOLEAN | SKU是否被纠正 |
+| `confidence` | NUMERIC | 整体置信度 |
+| `data_source` | TEXT | 数据来源（"excel"/"image"/"pdf"/"text"）|
+| `created_at` | TIMESTAMP | 创建时间 |
+
+#### order_corrections（结构化纠正记录）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | SERIAL | 主键 |
+| `feedback_id` | INTEGER | 关联 order_feedback |
+| `correction_type` | VARCHAR | 纠正类型（"store"/"sku"）|
+| `original_value` | VARCHAR | 原始值 |
+| `corrected_value` | VARCHAR | 纠正后值 |
+| `layer` | VARCHAR | 匹配层（Layer 0-4）|
+| `reason` | TEXT | 纠正原因 |
+| `created_at` | TIMESTAMP | 创建时间 |
+
+#### layer_success_rate（匹配成功率）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | SERIAL | 主键 |
+| `shipper_id` | VARCHAR | 货主ID |
+| `layer` | VARCHAR | 匹配层（Layer 0-4）|
+| `total_attempts` | INTEGER | 总尝试次数 |
+| `success_count` | INTEGER | 成功次数 |
+| `auto_confirm_count` | INTEGER | 自动确认次数 |
+| `manual_confirm_count` | INTEGER | 手动确认次数 |
+| `correction_count` | INTEGER | 纠正次数 |
+| `updated_at` | TIMESTAMP | 更新时间 |
+
+### 8.4 调用方式
+
+```python
+# 触发事件（自动执行，无需手动调用）
+# 订单完成时自动触发
+EventBus.emit("order_complete", {
+    "session_id": "xxx",
+    "order_input_hash": "xxx",
+    "owner_code": "HZ2024091100001",
+    "item_count": 7,
+    "confidence": 0.96
+})
+```
+
+---
+
+## 9. Phase 2：自动化守护系统 ⭐ 2026-06-08 新增
+
+### 9.1 概述
+
+**目的**：防止记忆断档，确保系统稳定运行，实现 7×24 小时无人值守。
+
+**核心组件**：
+- `scripts/check_continuity.sh` — 断档检测
+- `scripts/daily_wrap.sh` — 每日 10:00 日结
+- `scripts/startup_check.py` — 4 项启动自检
+- launchd 调度（macOS 原生）
+
+### 9.2 断档检测
+
+| 状态 | 定义 | 动作 |
+|------|------|------|
+| OK | 最新日志 < 24h | 正常 |
+| WARN | 24-72h | 飞书告警 |
+| P0 | > 72h | 飞书 P0 告警 + 阻断启动 |
+
+**检查命令**：
+```bash
+bash scripts/check_continuity.sh
+```
+
+### 9.3 强制日结
+
+- **时间**：每日 10:00（由老板指定）
+- **内容**：总结昨天数据
+- **输出**：`/tmp/daily_wrap_YYYY-MM-DD.md`
+- **调度**：launchd（macOS 原生）
+
+**日结内容**：
+1. 昨日订单处理统计（成功/失败/取消）
+2. 匹配成功率趋势
+3. 纠正数据摘要
+4. 待处理 PENDING
+
+### 9.4 启动 4 项自检
+
+每次启动 Skill 时自动检查：
+
+| # | 检查项 | 失败处理 |
+|---|--------|----------|
+| 1 | version_check（三处一致）| 阻断任务 |
+| 2 | git_clean（无未提交重要修改）| 警告 |
+| 3 | memory_fresh（MEMORY.md < 7 天）| 警告 |
+| 4 | no_pending（无紧急项超 24h）| 警告 |
+
+**检查命令**：
+```bash
+python3 scripts/startup_check.py
+```
+
+### 9.5 launchd 调度
+
+已注册任务：
+- `com.ai-order.daily-wrap` — 每日 10:00
+- `com.ai-order.phase3-maintenance` — 每周日 03:00
+
+---
+
+## 10. Phase 3：智能分析系统 ⭐ 2026-06-08 新增
+
+### 10.1 概述
+
+**目的**：自动化维护记忆索引和质量，实现记忆系统的自我进化。
+
+**核心组件**：
+- `scripts/reindex_memory.py` — 自动 reindex 索引
+- `scripts/extract_memory.py` — 自动提取摘要
+- `scripts/check_memory_quality.py` — 4W 质量检查
+- `scripts/phase3_maintenance.sh` — 每周全套维护
+
+### 10.2 自动 reindex
+
+- **触发**：每次 `phase3_maintenance.sh` 执行
+- **索引范围**：`skills/` + `docs/` + `memory/` + `scripts/`
+- **索引统计**：103 文件 / 8650 关键词
+- **命令**：
+```bash
+python3 scripts/reindex_memory.py --build
+python3 scripts/reindex_memory.py --check
+python3 scripts/reindex_memory.py --query "记忆系统"
+```
+
+### 10.3 自动提取摘要
+
+- **触发**：每次 SESSION_END 执行
+- **提取内容**：
+  - session 日志（最近 7 天）
+  - git commit（最近 30 天）
+  - PENDING.md 未完成项
+- **输出**：替换 MEMORY.md「最近会话摘要」
+- **命令**：
+```bash
+python3 scripts/extract_memory.py --output memory/MEMORY.md
+```
+
+### 10.4 4W 质量检查
+
+每条记忆必须带 4W：
+
+| W | 含义 | 缺失后果 |
+|---|------|----------|
+| **When** | 绝对日期 + 相对时间 | 不知道"什么时候的事" |
+| **What** | 客观事实 | 不知道"发生了什么" |
+| **Why** | 触发原因 | 不知道"为什么" |
+| **Witness** | 证据（git sha / 文件 / 数据）| 无法验证真假 |
+
+**质量分计算**：
+```
+quality = (has_when + has_what + has_why + has_witness) / 4
+       × (verified_recently ? 1.0 : 0.5)
+       × (has_evidence ? 1.0 : 0.7)
+```
+
+**分档标准**：
+| 质量分 | 等级 |
+|--------|------|
+| ≥ 0.8 | ✅ 高 |
+| 0.5-0.8 | ⚠️ 中 |
+| < 0.5 | ❌ 低（strict 模式退出非零）|
+
+**命令**：
+```bash
+python3 scripts/check_memory_quality.py           # 检查所有
+python3 scripts/check_memory_quality.py --strict  # 严格模式（quality<0.5 退出非零）
+python3 scripts/check_memory_quality.py memory/MEMORY.md  # 检查单文件
+```
+
+### 10.5 每周全套维护
+
+**命令**：`bash scripts/phase3_maintenance.sh`
+
+**执行内容**：
+1. reindex_memory.py --build（重建索引）
+2. extract_memory.py（提取摘要）
+3. check_memory_quality.py --strict（4W 检查）
+4. 周归档（14+ 天日志移到 archive/）
+
+---
+
+## 11. 调用示例
 
 ```python
 from skills.skill_order_to_huading_template import OrderToHuadingTemplate
@@ -506,7 +735,7 @@ if result.get("need_store_confirm"):
 
 ---
 
-## 9. 返回结果说明
+## 12. 返回结果说明
 
 | 字段                   | 说明                     |
 | ---------------------- | ------------------------ |
@@ -524,7 +753,7 @@ if result.get("need_store_confirm"):
 
 ---
 
-## 10. 安全守则
+## 13. 安全守则
 
 1. **Skill安装审核** - 安装任何 Skill 前，必须使用 clawhub-skill-vetting 进行安全审核
 2. **不读取密码** - 不读取电脑上的任何密码/密钥信息
@@ -534,7 +763,7 @@ if result.get("need_store_confirm"):
 
 ---
 
-## 11. 配置检查清单
+## 14. 配置检查清单
 
 - [X] **数据库连接** — 必填（db_config），使用 localhost:5432/neo
 - [X] **product_sku 表** — SKU主表（当前1832条）
