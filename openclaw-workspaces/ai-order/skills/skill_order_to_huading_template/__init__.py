@@ -393,11 +393,11 @@ class OrderToHuadingTemplate:
         # 如果db_config为空，尝试从环境变量读取
         if not db_config:
             db_config = {
-                "host": os.getenv("DB_HOST", "localhost"),
+                "host": os.getenv("DB_HOST", "ep-summer-lab-aoi59gs9.c-2.ap-southeast-1.aws.neon.tech"),
                 "port": int(os.getenv("DB_PORT", "5432")),
                 "database": os.getenv("DB_NAME", "neo"),
-                "user": os.getenv("DB_USER", "jinqianfei"),
-                "password": os.getenv("DB_PASSWORD", "")
+                "user": os.getenv("DB_USER", "neondb_owner"),
+                "password": os.getenv("DB_PASSWORD", "npg_NG5f1zZFRsgh")
             }
             
             # 如果密码为空，尝试读取 .env 文件
