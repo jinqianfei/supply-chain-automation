@@ -44,7 +44,7 @@ if [ ! -f "$SKILL_DIR/CHANGELOG.md" ]; then
   echo "❌ CHANGELOG.md 不存在: $SKILL_DIR/CHANGELOG.md"
   exit 2
 fi
-VERSION_CHANGELOG=$(grep -E '^##[[:space:]]+\[?[0-9]+\.[0-9]+(\.[0-9]+)?' "$SKILL_DIR/CHANGELOG.md" | head -1 | sed -E 's/.*\[?([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/')
+VERSION_CHANGELOG=$(grep -E '^##[[:space:]]+\[?[0-9]+\.[0-9]+(\.[0-9]+)?' "$SKILL_DIR/CHANGELOG.md" | head -1 | sed -E 's/^##[[:space:]]+\[?([0-9]+\.[0-9]+(\.[0-9]+)?)\]?.*$/\1/')
 if [ -z "$VERSION_CHANGELOG" ]; then
   echo "❌ CHANGELOG.md 中找不到版本条目（应有 '## [X.Y.Z]'）"
   exit 2
