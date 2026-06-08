@@ -2092,24 +2092,6 @@ class OrderToHuadingTemplate:
                     })
                 except Exception as _e:
                     print(f"[WARN] emit order_complete failed: {_e}", flush=True)
-            return {
-                "success": True,
-                "output_file": output_file,
-                "file_name": os.path.basename(output_file),
-                "download_url": _get_download_url(output_file),
-                "order_no": order_data.get("order_no", ""),
-                "store_names": store_names,
-                "store_count": len(all_store_results),
-                "item_count": total_items,
-                "matched_count": total_items - total_unmatched,
-                "unmatched_count": total_unmatched,
-                "unmatched_items": all_unmatched,
-                "extracted_from": extracted_from,
-                "review_data": review_data,
-                "has_issues": has_issues,
-                "all_store_results": all_store_results,
-                "message": friendly_msg
-            }
 
         except Exception as e:
             return {
