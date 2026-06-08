@@ -20,10 +20,16 @@ from typing import Optional, Dict, Any, List
 _collector_instance: Optional["FeedbackCollector"] = None
 
 
-def init_feedback_collector(db_config: dict) -> "FeedbackCollector":
-    """初始化全局 FeedbackCollector（重复调用返回旧实例）"""
+def init_feedback_collector(db_config: dict, force: bool = False) -> "FeedbackCollector":
+    """
+    初始化全局 FeedbackCollector（重复调用返回旧实例）
+
+    Args:
+        db_config: 数据库配置
+        force: True = 重新创建实例 + 重新订阅 10 个事件
+    """
     global _collector_instance
-    if _collector_instance is None:
+    if force or _collector_instance is None:
         _collector_instance = FeedbackCollector(db_config)
     return _collector_instance
 
