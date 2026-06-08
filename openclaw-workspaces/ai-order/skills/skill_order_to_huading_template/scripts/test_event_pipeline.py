@@ -94,7 +94,7 @@ def test_feedback_collector_init():
 def test_order_complete_event_writes_db():
     """测试3：order_complete 事件 → order_feedback 写入"""
     print("=== Test 3: order_complete → DB 写入 ===")
-    EventBus.clear()
+    # 注意：不调用 EventBus.clear()，因为 collector 是单例，clear 会导致 handler 全部丢失
     collector = init_feedback_collector(DB_CONFIG)
 
     # 模拟一次完整订单流
@@ -186,7 +186,7 @@ def test_order_complete_event_writes_db():
 def test_real_skill_execute():
     """测试4：真实 skill.execute() 触发事件"""
     print("=== Test 4: 真实 skill.execute() 端到端 ===")
-    EventBus.clear()
+    # 不 clear，验证 collector 已订阅事件
 
     import importlib
     import __init__ as skill_mod
