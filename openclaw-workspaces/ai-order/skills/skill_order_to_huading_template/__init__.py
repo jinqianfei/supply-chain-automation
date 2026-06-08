@@ -3258,6 +3258,15 @@ class OrderToHuadingTemplate:
                 })
             
             if modifications:
+                # v5.9.0 Phase 1：emit 用户修改事件
+                if _HAS_EVENT_BUS:
+                    EventBus.emit("user_modified", {
+                        "session_id": getattr(self, '_current_session_id', 'unknown'),
+                        "timestamp": time.time(),
+                        "modifications": modifications,
+                        "modification_count": len(modifications),
+                        "user_response_text": user_message,
+                    })
                 return {
                     "action": "modify",
                     "modifications": modifications,
