@@ -1783,6 +1783,23 @@ class OrderToHuadingTemplate:
                     if si.get("need_confirm") or si.get("candidates"):
                         top_c = si["candidates"][0] if si.get("candidates") else {}
                         top_sim = top_c.get("similarity", 0)
+                        # v5.9.0 Phase 1：emit 门店需要确认事件
+                        if _HAS_EVENT_BUS:
+                            EventBus.emit("store_confirm_needed", {
+                                "session_id": order_session_id,
+                                "timestamp": time.time(),
+                                "store_name_submitted": store_name_for_match,
+                                "matched_store": {
+                                    "store_code": si.get("store_code", top_c.get("store_code", "")),
+                                    "store_name": si.get("store_name", top_c.get("store_name", "")),
+                                    "owner_code": si.get("owner_code", top_c.get("owner_code", "")),
+                                },
+                                "candidates": si.get("candidates", []),
+                                "top_similarity": top_sim,
+                                "match_type": si.get("match_type", top_c.get("match_type", "")),
+                                "match_layer": si.get("match_type", top_c.get("match_type", "")),
+                                "need_customer_hint": False,
+                            })
                         return {
                             "success": False,
                             "need_store_confirm": True,
@@ -1892,6 +1909,25 @@ class OrderToHuadingTemplate:
                         }
                     # ⚠️ 不再自动确认：所有门店匹配都必须用户确认
                     if store_info.get("need_confirm"):
+                        # v5.9.0 Phase 1：emit 门店需要确认事件（单门店版）
+                        if _HAS_EVENT_BUS:
+                            top_c = (store_info.get("candidates") or [{}])[0]
+                            top_sim = top_c.get("similarity", 0)
+                            EventBus.emit("store_confirm_needed", {
+                                "session_id": order_session_id,
+                                "timestamp": time.time(),
+                                "store_name_submitted": store_info.get("store_name_submitted", ""),
+                                "matched_store": {
+                                    "store_code": top_c.get("store_code", ""),
+                                    "store_name": top_c.get("store_name", ""),
+                                    "owner_code": top_c.get("owner_code", ""),
+                                },
+                                "candidates": store_info.get("candidates", []),
+                                "top_similarity": top_sim,
+                                "match_type": top_c.get("match_type", "unknown"),
+                                "match_layer": top_c.get("match_type", "unknown"),
+                                "need_customer_hint": False,
+                            })
                         return {
                             "success": False,
                             "need_store_confirm": True,
