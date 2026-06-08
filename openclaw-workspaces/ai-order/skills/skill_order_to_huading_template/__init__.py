@@ -2055,7 +2055,7 @@ class OrderToHuadingTemplate:
                 # 用户消息
                 "message": friendly_msg
             }
-            # v5.9.0 Phase 1：emit 订单完成事件
+            # v5.9.0 Phase 1：emit 订单完成事件（在 return 之前）
             if _HAS_EVENT_BUS:
                 try:
                     _elapsed_ms = int(time.time() * 1000) - _started_ms
