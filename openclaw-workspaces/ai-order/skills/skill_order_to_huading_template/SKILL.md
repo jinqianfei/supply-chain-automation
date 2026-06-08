@@ -453,14 +453,15 @@ Step 5: _generate_multi_store_template()
 
 ---
 
-## 7. 数据库配置
+## 7. 数据库配置（2026-06-08 已迁移至 Neon 云端）
 
 ```python
 db_config = {
-    "host": "localhost",
+    "host": "ep-summer-lab-aoi59gs9.c-2.ap-southeast-1.aws.neon.tech",
     "port": 5432,
-    "database": "neo",  # 注意：不是 neondb
-    "user": "jinqianfei"
+    "database": "neo",
+    "user": "neondb_owner"
+    # 密码通过环境变量 DB_PASSWORD 或 .env 文件读取
 }
 ```
 
@@ -708,8 +709,8 @@ python3 scripts/check_memory_quality.py memory/MEMORY.md  # 检查单文件
 from skills.skill_order_to_huading_template import OrderToHuadingTemplate
 
 skill = OrderToHuadingTemplate(db_config={
-    "host": "localhost", "port": 5432,
-    "database": "neo", "user": "jinqianfei"
+    "host": "ep-summer-lab-aoi59gs9.c-2.ap-southeast-1.aws.neon.tech", "port": 5432,
+    "database": "neo", "user": "neondb_owner"
 })
 
 # Excel订单
@@ -765,7 +766,7 @@ if result.get("need_store_confirm"):
 
 ## 14. 配置检查清单
 
-- [X] **数据库连接** — 必填（db_config），使用 localhost:5432/neo
+- [X] **数据库连接** — 必填（db_config），使用 Neon 云端 ep-summer-lab-aoi59gs9.c-2.ap-southeast-1.aws.neon.tech:5432/neo
 - [X] **product_sku 表** — SKU主表（当前1832条）
 - [X] **product_name_alias 表** — 别名映射表（当前30条）
 - [X] **store_list 表** — 门店数据（当前~714条）
