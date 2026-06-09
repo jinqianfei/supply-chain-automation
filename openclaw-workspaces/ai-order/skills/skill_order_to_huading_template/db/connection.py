@@ -76,6 +76,9 @@ def get_default_db_config() -> dict:
     
     注意：fallback 必须是中性值，严防具体的主机名/用户名
     """
+    # 先加载 .env，确保环境变量有值（但不要覆盖已有的 env）
+    _load_dotenv_to_environ()
+    
     yaml_config = _load_db_config()
     return {
         "host": os.getenv("DB_HOST") or yaml_config.get("host") or "localhost",
