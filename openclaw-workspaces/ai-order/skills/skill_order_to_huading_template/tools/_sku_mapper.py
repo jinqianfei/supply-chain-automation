@@ -230,7 +230,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
         }
     """
     if db_config is None:
-        db_config = {"host": "localhost", "port": 5432, "database": "neo", "user": "your_username"}
+        db_config = {"host": os.getenv("DB_HOST", "localhost"), "port": int(os.getenv("DB_PORT", "5432")), "database": "neo", "user": "your_username"}
     
     # 预处理：去除各种空白字符
     import re
@@ -535,7 +535,7 @@ def map_sku_batch(owner_code: str, items: List[Dict],
         (results, unmatched_items) — 与 map_sku() 返回格式兼容
     """
     if db_config is None:
-        db_config = {"host": "localhost", "port": 5432, "database": "neo", "user": "your_username"}
+        db_config = {"host": os.getenv("DB_HOST", "localhost"), "port": int(os.getenv("DB_PORT", "5432")), "database": "neo", "user": "your_username"}
 
     # 预处理
     def clean_name_text(name):

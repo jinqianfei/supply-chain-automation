@@ -22,7 +22,7 @@ from learn.collector import FeedbackCollector, init_feedback_collector, get_feed
 
 
 DB_CONFIG = {
-    "host": "localhost",
+    "host": os.getenv("DB_HOST", "localhost"),
     "port": 5432,
     "database": "neo",
     "user": "your_username",

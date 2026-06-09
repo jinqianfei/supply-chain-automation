@@ -295,7 +295,7 @@ class OrderToHuadingTemplate:
   方式一：直接传入 db_config 参数
     skill = OrderToHuadingTemplate(
         db_config={
-            "host": "localhost",
+            "host": os.getenv("DB_HOST", "localhost"),
             "port": 5432,
             "database": "neo",
             "user": "your_username",
@@ -319,7 +319,7 @@ class OrderToHuadingTemplate:
 
 【配置模板】
     db_config = {
-        "host": "localhost",     # 数据库主机
+        "host": os.getenv("DB_HOST", "localhost"),     # 数据库主机
         "port": 5432,            # 数据库端口
         "database": "neo",        # 数据库名称（不是 neondb）
         "user": "your_username",    # 数据库用户名

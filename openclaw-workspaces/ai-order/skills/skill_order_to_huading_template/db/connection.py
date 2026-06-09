@@ -42,7 +42,7 @@ def _load_db_config() -> dict:
     
     # 兜底：硬编码默认值
     return {
-        "host": "localhost",
+        "host": os.getenv("DB_HOST", "localhost"),
         "port": 5432,
         "database": "neo",
         "user": "your_username",
