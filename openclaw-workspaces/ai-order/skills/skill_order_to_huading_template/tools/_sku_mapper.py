@@ -502,11 +502,11 @@ class SKUCache:
             return self
         conn = psycopg2.connect(**self.db_config)
         cur = conn.cursor()
-        cur.execute("""
+        cur.execute(f"""
             SELECT sku_code, sku_name, unit, unit_type,
                    conversion_ratio, product_spec, customer_code
-            FROM product_sku
-            WHERE shipper_id = %s AND status = 'ACTIVE'
+            FROM {SKU_TABLE}
+            WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}'
         """, (self.owner_code,))
         self._rows = cur.fetchall()
         conn.close()

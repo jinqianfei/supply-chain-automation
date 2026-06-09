@@ -17,6 +17,7 @@ if _SKILL_ROOT not in sys.path:
     sys.path.insert(0, _SKILL_ROOT)
 
 from config import get_huading_fields  # v5.11.2 统一从 yaml 读
+from db.table_names import SKU_TABLE, WAREHOUSE_TABLE  # v5.11.2 表名常量
 
 
 # 华鼎31字段（v5.11.2 改为从 yaml 读，保持同名变量向后兼容）
