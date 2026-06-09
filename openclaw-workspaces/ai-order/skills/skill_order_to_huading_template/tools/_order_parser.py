@@ -346,14 +346,170 @@ def _parse_text(text: str) -> Dict[str, Any]:
         if result.get("success"):
             result["extracted_from"] = "text"
             result["_parse_method"] = "llm"
+        else:
+            result = _parse_text_regex(text)
+            result["extracted_from"] = "text"
+            result["_parse_method"] = "regex_fallback"
         return result
     except Exception as e:
+        result = _parse_text_regex(text)
+        if result.get("success"):
+            result["extracted_from"] = "text"
+            result["_parse_method"] = "regex_fallback"
+            result.setdefault("warnings", []).append(f"LLM解析异常，已使用文本fallback: {str(e)}")
+            return result
         return {"success": False, "error": f"文本解析失败: {str(e)}"}
 
 
 # =============================================================================
 # Excel正则fallback
 # =============================================================================
+
+def _parse_text_regex(text: str) -> Dict[str, Any]:
+    """文本正则fallback，支持字段行 + 商品明细行。"""
+    order_no = ""
+    store_name = ""
+    contact_person = ""
+    phone = ""
+    address = ""
+    items = []
+    warnings = ["文本fallback解析"]
+
+    field_aliases = {
+        "order_no": ["订单编号", "订单号", "单号"],
+        "store_name": ["公司名称", "门店名称", "门店", "客户名称", "店名"],
+        "contact_person": ["联系人", "收货人", "收货人姓名", "收件人"],
+        "phone": ["联系电话", "手机号", "手机", "电话"],
+        "address": ["收货地址", "地址", "配送地址"],
+    }
+
+    def strip_label_value(line: str, aliases: list) -> Optional[str]:
+        for alias in aliases:
+            if line.startswith(alias):
+                value = line[len(alias):]
+                value = re.sub(r"^[\s：:,，、]+", "", value)
+                return value.strip()
+        return None
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        matched_field = False
+        for field, aliases in field_aliases.items():
+            value = strip_label_value(line, aliases)
+            if value is None:
+                continue
+            matched_field = True
+            if field == "order_no" and not order_no:
+                order_no = value
+            elif field == "store_name" and not store_name:
+                store_name = value
+            elif field == "contact_person" and not contact_person:
+                contact_person = value
+            elif field == "phone" and not phone:
+                phone = value
+            elif field == "address" and not address:
+                address = value
+            break
+
+        if matched_field:
+            continue
+
+        item = _parse_text_item_row(line)
+        if item:
+            item["seq"] = len(items) + 1
+            items.append(item)
+
+    if not store_name or not items:
+        return {
+            "success": False,
+            "error": "文本fallback未识别到门店或商品明细",
+            "warnings": warnings,
+        }
+
+    for prefix in ['河北-', '天津-', '沧州-', '创宇-', '盐城创宇-']:
+        if store_name.startswith(prefix):
+            store_name = store_name[len(prefix):]
+            break
+
+    return {
+        "success": True,
+        "confidence": 0.6,
+        "stores": {
+            store_name: {
+                "store_name": store_name,
+                "contact_person": contact_person,
+                "phone": phone,
+                "address": address,
+                "order_no": order_no,
+                "items": items,
+            }
+        },
+        "warnings": warnings,
+    }
+
+
+def _parse_text_item_row(line: str) -> Optional[Dict[str, Any]]:
+    """解析 '1 P9456694174 椰果果粒 规格：2kg*10袋 3 件' 这类商品行。"""
+    parts = line.split()
+    if len(parts) < 3:
+        return None
+
+    first = parts[0].rstrip(".、")
+    if not re.match(r"^\d+$", first):
+        return None
+
+    unit = "件"
+    quantity = 0
+    quantity_idx = -1
+    for idx in range(len(parts) - 1, 0, -1):
+        token = parts[idx]
+        if re.match(r"^\d+(?:\.\d+)?$", token):
+            quantity = int(float(token))
+            quantity_idx = idx
+            if idx + 1 < len(parts) and parts[idx + 1] in ["箱", "件", "袋", "包", "个", "瓶", "桶", "条", "盒", "台"]:
+                unit = parts[idx + 1]
+            break
+
+    if quantity_idx < 0 or quantity <= 0:
+        return None
+
+    product_code = ""
+    name_start = 1
+    if len(parts) > 1 and re.match(r"^[A-Za-z][A-Za-z0-9]{2,}$", parts[1]):
+        product_code = parts[1]
+        name_start = 2
+
+    name_and_spec = parts[name_start:quantity_idx]
+    if not name_and_spec:
+        return None
+
+    product_name_parts = []
+    spec_parts = []
+    spec_started = False
+    for token in name_and_spec:
+        if spec_started or re.search(r"(规格|件：|箱：|袋：|kg|KG|g|G|[*×])", token):
+            spec_started = True
+            spec_parts.append(token)
+        else:
+            product_name_parts.append(token)
+
+    product_name = "".join(product_name_parts).strip()
+    spec = " ".join(spec_parts).strip()
+    if not product_name:
+        return None
+
+    return {
+        "seq": 0,
+        "product_code": product_code,
+        "product_name": product_name,
+        "spec": spec,
+        "quantity": quantity,
+        "unit": unit,
+        "remark": "",
+    }
 
 def _parse_excel_regex(file_path: str) -> Dict[str, Any]:
     """Excel正则fallback（LLM失败时用）"""
