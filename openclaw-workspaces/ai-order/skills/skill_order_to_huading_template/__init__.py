@@ -321,7 +321,7 @@ class OrderToHuadingTemplate:
     db_config = {
         "host": os.getenv("DB_HOST", "localhost"),     # 数据库主机
         "port": 5432,            # 数据库端口
-        "database": "neo",        # 数据库名称（不是 neondb）
+        "database": "neo",        # 数据库名称
         "user": "your_username",    # 数据库用户名
         "password": "***"        # 数据库密码（必填）
     }

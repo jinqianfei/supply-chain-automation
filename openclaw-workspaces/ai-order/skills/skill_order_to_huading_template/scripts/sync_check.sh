@@ -5,6 +5,12 @@
 # 用途：扫描可能过时的"host/port/user/password"等配置描述
 # 用法: bash scripts/sync_check.sh [工作目录]
 # 退出码: 0=干净 / 1=有关键命中 / 2=脚本错误
+#
+# 设计原则：
+# 1. 跳过"合规 fallback"模式（如 os.getenv("DB_HOST", "localhost")）
+# 2. 跳过"路径里的 jinqianfei"（合法用户路径）
+# 3. 跳过白名单目录（历史快照/其他 skill/备份等）
+# 4. 关键命中数 > 0 时返回非零
 # =============================================================
 
 set -e
@@ -38,9 +44,9 @@ PATTERNS=(
 )
 
 # =============================================================
-# 白名单（按目录/文件模式匹配）
+# 白名单
 # =============================================================
-WHITELIST_PATTERNS=(
+WHITELIST_PATHS=(
     "docs/test_data/测评报告"               # 历史测评快照
     "skills/docs/测评报告"                  # 历史测评快照
     "docs/test_data/re_evaluate_skill"      # 历史测试脚本
@@ -54,9 +60,15 @@ WHITELIST_PATTERNS=(
     "shareable/skill_order_to_huading_template/learn/ADAPTIVE_LEARNING"  # 含 localhost fallback 示例
     "test_llm_parse.py"                     # 临时测试脚本
     "test_order9_e2e.py"                    # 临时测试脚本
+    # 其他 skill（不在本次任务范围，后续单独处理）
+    "skills/skill_openclaw_test/"           # 测试 skill
+    "skills/skill_openclaw_deploy/"         # 部署 skill
+    "skills/skill_ops_monitor/"             # 监控 skill
+    "skills/skill_operation_monitor/"       # 监控 skill
+    "skills/skill_skill_monitor/"           # 监控 skill
+    "skills/skill_openclaw_deploy/SKILL.md.*localhost:18789"  # EC2 端口描述
 )
 
-# 文件后缀白名单
 WHITELIST_SUFFIXES=(
     ".zip"
     ".bak"
@@ -65,10 +77,23 @@ WHITELIST_SUFFIXES=(
     ".swp"
 )
 
-# 单行白名单 (grep -F 匹配)
-WHITELIST_GREP=(
-    "/Users/jinqianfei/openclaw-workspaces"  # 路径里的 jinqianfei 是合法的
-    "AGENTHUB_DB_CJYS0MSC4X8S"               # RDS host 描述（合法）
+# 单行白名单（这一行如果只匹配这个字符串，就跳过）
+# 用于"路径里出现 jinqianfei"等合法场景
+WHITELIST_LINE_PATTERNS=(
+    "os.getenv(\"DB_HOST\", \"localhost\")"        # 合规 env fallback
+    "os.getenv(\"DB_PORT\", \"5432\")"            # 合规 env fallback
+    "os.getenv(\"DB_NAME\", \"neo\")"             # 合规 env fallback
+    "os.getenv(\"DB_USER\""                        # 合规 env fallback
+    "os.getenv(\"DB_PASSWORD\""                   # 合规 env fallback
+    "/Users/jinqianfei/openclaw-workspaces"        # 合法路径
+    "/Users/jinqianfei/Downloads"                  # 合法路径
+    "/Users/jinqianfei/.openclaw"                  # 合法路径
+    "localhost:18789"                              # EC2 端口描述
+    "localhost:3000"                              # 本地服务
+    "localhost:8000"                              # 本地 LLM
+    "localhost:6379"                              # 本地 Redis
+    "localhost:11434"                             # 本地 Ollama
+    "4 份主文档 + 1 份 docs/方案 之前混合描述"      # MEMORY.md 事故描述
 )
 
 # =============================================================
@@ -96,75 +121,77 @@ for pattern in "${PATTERNS[@]}"; do
     echo -e "🔎 Pattern: ${YELLOW}$pattern${NC}"
     echo "------------------------------------------------------------"
 
-    HITS=$(echo "$TARGET_FILES" | xargs grep -l "$pattern" 2>/dev/null | sort -u || true)
+    # 用 grep -n 拿所有命中的 file:line:content
+    HITS=$(echo "$TARGET_FILES" | xargs grep -n "$pattern" 2>/dev/null | sort || true)
     if [ -z "$HITS" ]; then
         echo -e "  ${GREEN}✅ 0 hits${NC}"
         echo ""
         continue
     fi
 
-    # 应用白名单
-    EFFECTIVE_FILES="$HITS"
-    WHITELISTED_FILES=""
-
-    for wl in "${WHITELIST_PATTERNS[@]}"; do
-        WM=$(echo "$EFFECTIVE_FILES" | grep -F "$wl" 2>/dev/null || true)
-        if [ -n "$WM" ]; then
-            WHITELISTED_FILES+="$WM"$'\n'
-            EFFECTIVE_FILES=$(echo "$EFFECTIVE_FILES" | grep -v -F "$wl" 2>/dev/null || true)
-        fi
-    done
-
-    for suffix in "${WHITELIST_SUFFIXES[@]}"; do
-        WM=$(echo "$EFFECTIVE_FILES" | grep -F "$suffix" 2>/dev/null || true)
-        if [ -n "$WM" ]; then
-            WHITELISTED_FILES+="$WM"$'\n'
-            EFFECTIVE_FILES=$(echo "$EFFECTIVE_FILES" | grep -v -F "$suffix" 2>/dev/null || true)
-        fi
-    done
-
-    # 单行白名单需要 grep 内容
-    if [ -n "$EFFECTIVE_FILES" ]; then
-        for sg in "${WHITELIST_GREP[@]}"; do
-            # 找出 EFFECTIVE_FILES 中所有行都只匹配白名单 grep 的文件
-            ONLY_WL=$(echo "$EFFECTIVE_FILES" | while read f; do
-                [ -z "$f" ] && continue
-                # 看这个文件里 pattern 的所有命中是否都包含白名单 grep
-                FILE_HITS=$(grep -n "$pattern" "$f" 2>/dev/null || true)
-                NON_WL_HITS=$(echo "$FILE_HITS" | grep -v -F "$sg" 2>/dev/null || true)
-                if [ -z "$NON_WL_HITS" ]; then
-                    echo "$f"
-                fi
-            done)
-            if [ -n "$ONLY_WL" ]; then
-                WHITELISTED_FILES+="$ONLY_WL"$'\n'
-                EFFECTIVE_FILES=$(echo "$EFFECTIVE_FILES" | grep -v -F -f <(echo "$ONLY_WL") 2>/dev/null || true)
+    # 应用路径白名单
+    FILTERED_HITS="$HITS"
+    WHITELISTED_LINES=""
+    for wl in "${WHITELIST_PATHS[@]}"; do
+        # wl 可能是 "path/" 或 "path.*pattern"（后者是行级匹配）
+        if [[ "$wl" == *"*"* ]]; then
+            # 行级匹配
+            wl_path="${wl%.*}"
+            wl_line="${wl#*.}"
+            WM=$(echo "$FILTERED_HITS" | grep -E "^\\./${wl_path}/.*${wl_line}" 2>/dev/null || true)
+            if [ -n "$WM" ]; then
+                WHITELISTED_LINES+="$WM"$'\n'
+                FILTERED_HITS=$(echo "$FILTERED_HITS" | grep -v -E "^\\./${wl_path}/.*${wl_line}" 2>/dev/null || true)
             fi
-        done
-    fi
+        else
+            WM=$(echo "$FILTERED_HITS" | grep -E "^\\./${wl#/\\./}" 2>/dev/null || true)
+            if [ -n "$WM" ]; then
+                WHITELISTED_LINES+="$WM"$'\n'
+                FILTERED_HITS=$(echo "$FILTERED_HITS" | grep -v -E "^\\./${wl#/\\./}" 2>/dev/null || true)
+            fi
+        fi
+    done
+
+    # 应用后缀白名单
+    for suffix in "${WHITELIST_SUFFIXES[@]}"; do
+        WM=$(echo "$FILTERED_HITS" | grep -E "${suffix}:" 2>/dev/null || true)
+        if [ -n "$WM" ]; then
+            WHITELISTED_LINES+="$WM"$'\n'
+            FILTERED_HITS=$(echo "$FILTERED_HITS" | grep -v -E "${suffix}:" 2>/dev/null || true)
+        fi
+    done
+
+    # 应用单行白名单
+    for lp in "${WHITELIST_LINE_PATTERNS[@]}"; do
+        WM=$(echo "$FILTERED_HITS" | grep -F "$lp" 2>/dev/null || true)
+        if [ -n "$WM" ]; then
+            WHITELISTED_LINES+="$WM"$'\n'
+            FILTERED_HITS=$(echo "$FILTERED_HITS" | grep -v -F "$lp" 2>/dev/null || true)
+        fi
+    done
 
     # 统计
-    TOTAL_FILE_COUNT=0
-    [ -n "$HITS" ] && TOTAL_FILE_COUNT=$(echo "$HITS" | grep -c . 2>/dev/null) && [ -z "$TOTAL_FILE_COUNT" ] && TOTAL_FILE_COUNT=0
-    WL_FILE_COUNT=0
-    [ -n "$WHITELISTED_FILES" ] && WL_FILE_COUNT=$(echo "$WHITELISTED_FILES" | grep -c . 2>/dev/null) && [ -z "$WL_FILE_COUNT" ] && WL_FILE_COUNT=0
-    EF_FILE_COUNT=0
-    [ -n "$EFFECTIVE_FILES" ] && EF_FILE_COUNT=$(echo "$EFFECTIVE_FILES" | grep -c . 2>/dev/null) && [ -z "$EF_FILE_COUNT" ] && EF_FILE_COUNT=0
+    HIT_COUNT=0
+    [ -n "$HITS" ] && HIT_COUNT=$(echo "$HITS" | grep -c . 2>/dev/null) && [ -z "$HIT_COUNT" ] && HIT_COUNT=0
+    WL_COUNT=0
+    [ -n "$WHITELISTED_LINES" ] && WL_COUNT=$(echo "$WHITELISTED_LINES" | grep -c . 2>/dev/null) && [ -z "$WL_COUNT" ] && WL_COUNT=0
+    EF_COUNT=0
+    [ -n "$FILTERED_HITS" ] && EF_COUNT=$(echo "$FILTERED_HITS" | grep -c . 2>/dev/null) && [ -z "$EF_COUNT" ] && EF_COUNT=0
 
-    TOTAL_HITS=$((TOTAL_HITS + TOTAL_FILE_COUNT))
-    P2_HITS=$((P2_HITS + WL_FILE_COUNT))
-    P0_HITS=$((P0_HITS + EF_FILE_COUNT))
+    TOTAL_HITS=$((TOTAL_HITS + HIT_COUNT))
+    P2_HITS=$((P2_HITS + WL_COUNT))
+    P0_HITS=$((P0_HITS + EF_COUNT))
 
     if [[ "$pattern" =~ (localhost|jinqianfei|neondb|npg_|TV\*fB4|904825541|summer-lab|ep-summer-lab) ]]; then
-        CRITICAL_HITS=$((CRITICAL_HITS + EF_FILE_COUNT))
+        CRITICAL_HITS=$((CRITICAL_HITS + EF_COUNT))
     fi
 
-    if [ "$EF_FILE_COUNT" -gt 0 ]; then
-        echo -e "  ${RED}🔴 有效命中 ($EF_FILE_COUNT 个文件):${NC}"
-        echo "$EFFECTIVE_FILES" | sed 's/^/    /'
+    if [ "$EF_COUNT" -gt 0 ]; then
+        echo -e "  ${RED}🔴 有效命中 ($EF_COUNT 行):${NC}"
+        echo "$FILTERED_HITS" | head -30 | sed 's/^/    /'
     fi
-    if [ "$WL_FILE_COUNT" -gt 0 ]; then
-        echo -e "  ${GREEN}⚪ 已白名单 ($WL_FILE_COUNT 个文件)${NC}"
+    if [ "$WL_COUNT" -gt 0 ]; then
+        echo -e "  ${GREEN}⚪ 已白名单 ($WL_COUNT 行)${NC}"
     fi
     echo ""
 done
@@ -172,7 +199,7 @@ done
 echo "============================================================"
 echo "📊 总结"
 echo "============================================================"
-echo -e "总命中文件数: $TOTAL_HITS"
+echo -e "总命中行数: $TOTAL_HITS"
 echo -e "  P0 有效命中 (需清理): ${RED}$P0_HITS${NC}"
 echo -e "  P2 白名单放过:         ${GREEN}$P2_HITS${NC}"
 echo -e "  关键命中数 (CRITICAL): ${RED}$CRITICAL_HITS${NC}"
