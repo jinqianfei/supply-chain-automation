@@ -300,10 +300,10 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
 
     # ========== Layer 1b: 精确匹配（清洗后名称） ==========
     if clean_name != product_name:
-        cur.execute("""
+        cur.execute(f"""
             SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code
-            FROM product_sku
-            WHERE shipper_id = %s AND status = 'ACTIVE'
+            FROM {SKU_TABLE}
+            WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}'
               AND (sku_name = %s OR customer_code = %s)
             ORDER BY CASE WHEN unit_type = '大单位' THEN 0 ELSE 1 END
         """, (owner_code, clean_name, clean_name))
@@ -332,10 +332,10 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
 
     # ========== Layer 2: 模糊匹配（清洗后名称） ==========
     if clean_name != product_name:
-        cur.execute("""
+        cur.execute(f"""
             SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code
-            FROM product_sku
-            WHERE shipper_id = %s AND status = 'ACTIVE'
+            FROM {SKU_TABLE}
+            WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}'
               AND sku_name LIKE %s
         """, (owner_code, f"%{clean_name}%"))
         rows = cur.fetchall()
