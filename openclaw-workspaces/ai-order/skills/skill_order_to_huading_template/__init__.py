@@ -244,66 +244,6 @@ def _get_download_url(output_file: str) -> str:
     import urllib.parse
     encoded_filename = urllib.parse.quote(filename)
     return f"http://{AWS_PUBLIC_IP}:{AWS_FILE_PORT}/{encoded_filename}"
-    parts = line.split()
-    if len(parts) < 2:
-        return None
-
-    n = len(parts)
-
-    # ===== 从右往左解析：数量 + 单位 =====
-    i = n - 1
-    unit = "件"
-    quantity = 1
-
-    while i >= 0:
-        p = parts[i]
-        if re.match(r'^\d+$', p):
-            quantity = int(p)
-            i -= 1
-            if i >= 0 and parts[i] in ["箱", "件", "袋", "包", "个", "瓶", "桶", "条", "盒", "台"]:
-                unit = parts[i]
-                i -= 1
-            break
-        elif p in ["箱", "件", "袋", "包", "个", "瓶", "桶", "条", "盒", "台"]:
-            unit = p
-            i -= 1
-            continue
-        else:
-            i -= 1
-            continue
-
-    # ===== 解析商品名 =====
-    remaining = parts[1:i+1]
-    has_sku_code = len(remaining) > 0 and _is_sku_code(remaining[0])
-
-    if has_sku_code:
-        product_name = remaining[1] if len(remaining) > 1 else remaining[0]
-        spec = " ".join(remaining[2:]) if len(remaining) > 2 else ""
-    else:
-        product_name = remaining[0] if remaining else ""
-        spec = " ".join(remaining[1:]) if len(remaining) > 1 else ""
-
-    # ===== 简单正则兜底（处理 '1. 商品名 5 箱' 等格式）=====
-    if not product_name or len(product_name) <= 1:
-        item_match = re.match(r'^[\-\*\d]+[\.、\s]+(.+?)(?:\s+(\d+)\s*[\u4e00-\u9fa5件个箱袋台]?)?$', line)
-        if item_match:
-            return {
-                "product_name": item_match.group(1).strip(),
-                "spec": "",
-                "quantity": int(item_match.group(2)) if item_match.group(2) else 1,
-                "unit": "件",
-                "remark": "",
-                "product_code": ""
-            }
-
-    return {
-        "product_name": product_name,
-        "spec": spec,
-        "quantity": quantity,
-        "unit": unit,
-        "remark": "",
-        "product_code": ""
-    }
 
 
 class OrderToHuadingTemplate:
