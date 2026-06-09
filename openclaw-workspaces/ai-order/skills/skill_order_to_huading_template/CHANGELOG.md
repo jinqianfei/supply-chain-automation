@@ -5,6 +5,24 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.11.2] - 2026-06-09
+
+### Added
+- **配置统一化**：消除代码中的硬编码配置
+  - 华鼎 31 字段顺序统一从 `config/template_defaults.yaml` 读取（不再在多处硬编码）
+  - 数据库表名常量统一到 `db/table_names.py`（SKU_TABLE / WAREHOUSE_TABLE 等）
+  - 新增 `config/template_defaults.yaml`：华鼎字段定义源头
+  - 新增 `db/table_names.py`：所有表名的常量定义
+
+### Changed
+- `tools/_template_generator.py` 改用 `get_huading_fields()` 从 yaml 读取
+- `tools/_sku_mapper.py` 等调用方改用 `SKU_TABLE` / `WAREHOUSE_TABLE` 常量
+- `config/__init__.py` 新增 `get_huading_fields()` 函数提供字段配置
+
+### Notes
+- 本次改动从 v5.11.1 的 P1 优化中提取并正式发布
+- 之前 v5.11.1 的 CHANGELOG 已包含此改动（抽到 yaml / 抽表名常量），但未单独标记版本
+
 ## [5.11.1] - 2026-06-09
 
 ### Added
