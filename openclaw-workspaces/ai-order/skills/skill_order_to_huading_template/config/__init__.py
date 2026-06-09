@@ -31,6 +31,10 @@ def get_huading_fields() -> list:
     return list(data.get("huading_template", {}).get("fields", []))
 
 
+# 别名（用于 __init__.py 类内引用）
+_get_huading_fields = get_huading_fields
+
+
 def get_default_values() -> dict:
     """华鼎模板字段默认值（与 get_template_defaults 同源）"""
     return get_template_defaults()

@@ -17,6 +17,8 @@ from typing import Dict, Any, Optional, Union, List, Tuple
 
 # ── 统一 .env 加载器（避免 4 处重复路径硬编码）────────
 from db.connection import _load_dotenv_to_environ
+# ── 统一配置加载器（消除 31 字段、默认值、别名等双重定义）────────
+from config import _get_huading_fields
 
 # ── v5.9.0 Phase 1：事件总线 + 反馈采集器（懒加载，单例）────────
 try:
