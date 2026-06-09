@@ -10,6 +10,7 @@ test_event_pipeline.py — v5.9.0 Phase 1 事件采集链测试
 import os
 import sys
 import time
+import tempfile
 import psycopg2
 
 # 路径配置
@@ -135,8 +136,8 @@ def test_order_complete_event_writes_db():
         "processing_time_ms": 1234,
         "skill_version": "5.9.0",
         "owner_code": "HZ001",
-        "source_file": "/tmp/test_order.txt",
-        "output_file": "/tmp/test_output.xlsx",
+        "source_file": tempfile.gettempdir() + "/test_order.txt",
+        "output_file": tempfile.gettempdir() + "/test_output.xlsx",
     })
     print("  emit order_complete")
 

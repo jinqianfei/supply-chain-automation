@@ -86,9 +86,9 @@ WHITELIST_LINE_PATTERNS=(
     "os.getenv(\"DB_NAME\", \"neo\")"             # 合规 env fallback
     "os.getenv(\"DB_USER\""                        # 合规 env fallback
     "os.getenv(\"DB_PASSWORD\""                   # 合规 env fallback
-    "/Users/jinqianfei/openclaw-workspaces"        # 合法路径
-    "/Users/jinqianfei/Downloads"                  # 合法路径
-    "/Users/jinqianfei/.openclaw"                  # 合法路径
+    "$HOME/openclaw-workspaces"                    # 当前用户合法路径（跨机器可移植）
+    "$HOME/Downloads"                              # 当前用户合法路径
+    "$HOME/.openclaw"                              # 当前用户合法路径
     "localhost:18789"                              # EC2 端口描述
     "localhost:3000"                              # 本地服务
     "localhost:8000"                              # 本地 LLM
