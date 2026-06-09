@@ -15,6 +15,9 @@ import time
 import uuid
 from typing import Dict, Any, Optional, Union, List, Tuple
 
+# ── 统一 .env 加载器（避免 4 处重复路径硬编码）────────
+from db.connection import _load_dotenv_to_environ
+
 # ── v5.9.0 Phase 1：事件总线 + 反馈采集器（懒加载，单例）────────
 try:
     from events.bus import EventBus
@@ -1190,23 +1193,10 @@ class OrderToHuadingTemplate:
             api_key = os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY")
             if not api_key:
                 raise ValueError("未设置 MINIMAX_API_KEY 或 OPENAI_API_KEY")
-            
-            # 从 .env 文件加载环境变量（如果存在）
-            env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", ".env")
-            if os.path.exists(env_path):
-                try:
-                    with open(env_path) as f:
-                        for line in f:
-                            line = line.strip()
-                            if not line or line.startswith("#"):
-                                continue
-                            if "=" in line:
-                                k, v = line.split("=", 1)
-                                if k.strip() not in os.environ:
-                                    os.environ[k.strip()] = v.strip()
-                except Exception:
-                    pass
-            
+
+            # 从 .env 文件加载环境变量（统一函数）
+            _load_dotenv_to_environ()
+
             # 再次确认API key已加载（覆盖之前的检查）
             api_key = os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY")
             
