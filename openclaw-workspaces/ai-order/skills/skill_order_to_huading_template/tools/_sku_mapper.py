@@ -544,7 +544,7 @@ def map_sku_batch(owner_code: str, items: List[Dict],
         (results, unmatched_items) — 与 map_sku() 返回格式兼容
     """
     if db_config is None:
-        db_config = {"host": os.getenv("DB_HOST", "localhost"), "port": int(os.getenv("DB_PORT", "5432")), "database": "neo", "user": "your_username"}
+        db_config = get_default_db_config()
 
     # 预处理
     def clean_name_text(name):
