@@ -402,18 +402,26 @@ class OrderToHuadingTemplate:
         # 注意：fallback 必须是中性值（localhost/your_username/your_db_host）
         # 严禁 fallback 到具体的主机名/用户名（防止泄露或错连）
         if not db_config:
+            # 先加载 .env，确保环境变量可用（覆盖=False）
+            _load_dotenv_to_environ()
+            
+            # 构建初始配置（优先用 env，fallback 到中性值）
             db_config = {
-                "host": os.getenv("DB_HOST") or "localhost",
-                "port": int(os.getenv("DB_PORT", "5432")),
-                "database": os.getenv("DB_NAME") or "neo",
-                "user": os.getenv("DB_USER") or "your_username",
+                "host": os.getenv("DB_HOST"),  # None 表示未设置，后续检查
+                "port": int(os.getenv("DB_PORT", "0") or 5432),  # 0 表示需要从 env 取
+                "database": os.getenv("DB_NAME"),
+                "user": os.getenv("DB_USER"),
                 "password": os.getenv("DB_PASSWORD", "")
             }
             
-            # 如果密码为空，尝试读取 .env 文件（统一函数：db.connection._load_dotenv_to_environ）
-            if not db_config.get("password"):
-                _load_dotenv_to_environ()
-                db_config["password"] = os.getenv("DB_PASSWORD", "")
+            # 如果环境变量没有值（fallback 到中性值），需要确保有值
+            db_config = {
+                "host": db_config.get("host") or "localhost",
+                "port": int(db_config.get("port") or 5432),
+                "database": db_config.get("database") or "neo",
+                "user": db_config.get("user") or "your_username",
+                "password": db_config.get("password", "")
+            }
         
         # 检查配置是否完整
         config_status = self.check_config(db_config)
