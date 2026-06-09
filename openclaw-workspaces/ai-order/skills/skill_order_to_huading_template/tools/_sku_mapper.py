@@ -233,7 +233,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
             return ""
         name = str(name)
         name = name.strip()
-        name = re.sub(r'[\t\u00a0\u3000\u200b\-\u200f\ufeff]+', '', name)
+        name = re.sub(r'[\t\u00a0\u3000\u200b\u200f\ufeff]+', '', name)  # 保留连接符 -
         name = name.replace(' ', '')
         return name
     
@@ -536,7 +536,7 @@ def map_sku_batch(owner_code: str, items: List[Dict],
         if not name:
             return ""
         name = str(name).strip()
-        name = re.sub(r'[\t\u00a0\u3000\u200b\-\u200f\ufeff]+', '', name)
+        name = re.sub(r'[\t\u00a0\u3000\u200b\u200f\ufeff]+', '', name)  # 保留连接符 -
         name = name.replace(' ', '')
         return name
 
