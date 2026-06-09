@@ -20,9 +20,9 @@ providers:
   # ===== 平台内嵌模型（推荐默认）=====
   # 无需任何配置，自动用当前 OpenClaw agent 的模型
   openclaw:
-    model: "minimax-portal/MiniMax-M3"
+    model: "volcengine-ark/ark-code-latest"
     type: openclaw
-    # 当前 agent 模型: minimax-portal/MiniMax-M3
+    # 当前 agent 模型: volcengine-ark/ark-code-latest
 
   # ===== OpenAI 官方 API =====
   openai:
@@ -37,6 +37,13 @@ providers:
     base_url: "https://api.minimax.chat/v1"
     api_key: "${MINIMAX_API_KEY}"
     model: "MiniMax-M2.7"
+
+  ark:
+    type: openai_compat
+    alias: "Volcengine Ark"
+    base_url: "https://ark.cn-beijing.volces.com/api/coding/v3"
+    api_key: "${ARK_API_KEY}"
+    model: "ark-code-latest"
 
   deepseek:
     type: openai_compat

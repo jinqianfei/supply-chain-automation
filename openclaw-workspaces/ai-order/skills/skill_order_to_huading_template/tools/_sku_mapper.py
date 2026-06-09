@@ -563,10 +563,10 @@ def map_sku_batch(owner_code: str, items: List[Dict],
     # 加载别名表（一次 DB 查询）
     conn = psycopg2.connect(**db_config)
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(f"""
         SELECT a.order_product_name, p.sku_code, p.sku_name, p.unit, p.unit_type,
                p.conversion_ratio, p.product_spec, p.customer_code
-        FROM product_name_alias a
+        FROM {ALIAS_TABLE} a
         JOIN {SKU_TABLE} p ON p.sku_name = a.system_product_name AND p.shipper_id = a.shipper_id
         WHERE a.shipper_id = %s
     """, (owner_code,))
