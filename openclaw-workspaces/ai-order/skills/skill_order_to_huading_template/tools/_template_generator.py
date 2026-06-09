@@ -45,7 +45,7 @@ def get_warehouse_code(warehouse_name: str, db_config: Optional[dict] = None) ->
     conn = get_connection(db_config)
     cur = conn.cursor()
     
-    cur.execute("""
+    cur.execute(f"""
         SELECT warehouse_code FROM {WAREHOUSE_TABLE}
         WHERE warehouse_name = %s
     """, (warehouse_name,))

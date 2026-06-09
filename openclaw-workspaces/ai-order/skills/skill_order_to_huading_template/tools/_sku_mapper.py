@@ -266,9 +266,9 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
     clean_name = _clean_product_name(product_name)
     
     # ========== Layer 0: 别名表查表 ==========
-    cur.execute("""
+    cur.execute(f"""
         SELECT p.sku_code, p.sku_name, p.unit, p.unit_type, p.conversion_ratio, p.product_spec, p.customer_code
-        FROM product_name_alias a
+        FROM {ALIAS_TABLE} a
         JOIN {SKU_TABLE} p ON p.sku_name = a.system_product_name AND p.shipper_id = a.shipper_id
         WHERE a.shipper_id = %s AND a.order_product_name = %s
         ORDER BY p.unit_type DESC
@@ -363,7 +363,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
                 return result
     
     # ========== Layer 2.5: 全量相似度匹配（始终执行，当Layer 2无结果时兜底） ==========
-    cur.execute("SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code FROM {SKU_TABLE} WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}' LIMIT {SKU_CACHE_LIMIT}", (owner_code,))
+    cur.execute(f"SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code FROM {SKU_TABLE} WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}' LIMIT {SKU_CACHE_LIMIT}", (owner_code,))
     all_skus = cur.fetchall()
     if all_skus:
         scored = []
@@ -407,7 +407,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
     
     all_matches = []
     for keyword in keywords:
-        cur.execute("SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code FROM {SKU_TABLE} WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}' AND sku_name LIKE %s LIMIT {SKU_MATCH_LIMIT}", (owner_code, f"%{keyword}%"))
+        cur.execute(f"SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code FROM {SKU_TABLE} WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}' AND sku_name LIKE %s LIMIT {SKU_MATCH_LIMIT}", (owner_code, f"%{keyword}%"))
         rows = cur.fetchall()
         for r in rows:
             # 核心词校验 - 排除不同口味调料的错误匹配
