@@ -1,5 +1,5 @@
 # 数据库连接配置
-# 2026-06-09 更新：从 localhost 改为云端 RDS
+# 2026-06-09 更新：从占位符 localhost 改为环境变量
 database:
   host: agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com
   port: 5432

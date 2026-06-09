@@ -253,7 +253,7 @@ class OrderToHuadingTemplate:
             "required": True,
             "description": "数据库连接配置",
             "fields": {
-                "host": {"type": "string", "default": "localhost", "description": "数据库主机地址"},
+                "host": {"type": "string", "default": "your_db_host", "description": "数据库主机地址"},
                 "port": {"type": "int", "default": "5432", "description": "数据库端口"},
                 "database": {"type": "string", "default": "neo", "description": "数据库名称"},
                 "user": {"type": "string", "default": "your_username", "description": "数据库用户名"},
@@ -304,14 +304,14 @@ class OrderToHuadingTemplate:
     )
 
   方式二：通过环境变量
-    export DB_HOST=localhost
+    export DB_HOST=your_db_host
     export DB_PORT=5432
     export DB_NAME=neo
     export DB_USER=your_username
     export DB_PASSWORD=your_password
 
   方式三：通过 .env 文件（项目根目录）
-    DB_HOST=localhost
+    DB_HOST=your_db_host
     DB_PORT=5432
     DB_NAME=neo
     DB_USER=your_username
