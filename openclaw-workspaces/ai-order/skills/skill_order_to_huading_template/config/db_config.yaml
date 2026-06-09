@@ -1,8 +1,8 @@
 # 数据库连接配置
-# 从 .env 文件读取，此处为默认值占位
+# 2026-06-09 更新：从 localhost 改为云端 RDS
 database:
-  host: localhost
+  host: agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com
   port: 5432
   database: neo
-  user: jinqianfei
+  user: agenthub
   password: ""

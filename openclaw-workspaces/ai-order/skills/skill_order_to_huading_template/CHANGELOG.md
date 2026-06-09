@@ -21,7 +21,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `tools/_order_parser.py` 接入 LLMRouter
 
 ### Notes
-- 本次重构解决了「skill 无法直接用平台模型」的问题
+- 本次 LLM Provider 改造后，数据库配置统一使用 .env 中的环境变量（默认 RDS 云端）- 本次重构解决了「skill 无法直接用平台模型」的问题
 - 与 Phase 3.0 字段名采集正交，可独立演进
 - 建议：先部署 5.11.0 验证 LLM Router，再做 Phase 3.0
 ### Added
@@ -34,7 +34,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - AI 必须通过 `skill.execute()` 入口调用
 
 ### Notes
-- 本次修改的对话背景：5.9.1 增量 patch（仅 bump VERSION）被 reset 撤销，但 5.9.0 主体（技术锁）保留
+- 本次 LLM Provider 改造后，数据库配置统一使用 .env 中的环境变量（默认 RDS 云端）- 本次修改的对话背景：5.9.1 增量 patch（仅 bump VERSION）被 reset 撤销，但 5.9.0 主体（技术锁）保留
 - SKILL.md 头 5.9 与 VERSION/CHANGELOG 此前未同步，本次补齐
 
 ### Phase 1 — 自适应学习系统 (2026-06-08)
@@ -97,5 +97,5 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - 修复的问题
 
 ### Notes
-- 本次修改的对话背景 session: om_xxx
+- 本次 LLM Provider 改造后，数据库配置统一使用 .env 中的环境变量（默认 RDS 云端）- 本次修改的对话背景 session: om_xxx
 ```
