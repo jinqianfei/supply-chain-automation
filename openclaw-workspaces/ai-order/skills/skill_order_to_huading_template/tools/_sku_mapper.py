@@ -16,6 +16,15 @@ from typing import Optional, Dict, Any, List, Tuple
 from difflib import SequenceMatcher
 import re
 import psycopg2
+import sys
+import os
+
+# 允许独立运行（不依赖主入口）：将 skill 根目录加入 sys.path
+_SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _SKILL_ROOT not in sys.path:
+    sys.path.insert(0, _SKILL_ROOT)
+
+from db.connection import get_connection, get_default_db_config
 
 
 def _clean_product_name(name: str) -> str:
@@ -230,7 +239,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
         }
     """
     if db_config is None:
-        db_config = {"host": os.getenv("DB_HOST", "localhost"), "port": int(os.getenv("DB_PORT", "5432")), "database": "neo", "user": "your_username"}
+        db_config = get_default_db_config()
     
     # 预处理：去除各种空白字符
     import re
