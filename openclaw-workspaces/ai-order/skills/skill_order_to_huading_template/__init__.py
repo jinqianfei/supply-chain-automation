@@ -154,9 +154,10 @@ def _parse_item_row(line: str) -> Optional[Dict]:
 
 
 # ========== 文件下载 URL 生成 ==========
-# AWS OpenClaw 配置
-AWS_PUBLIC_IP = "13.212.17.85"
-AWS_FILE_PORT = 18790
+# AWS OpenClaw 配置（必须通过环境变量指定，未设置时禁用文件URL功能）
+# 部署到非 AWS 环境时只需不设置这两个变量，_get_download_url() 返回空字符串
+AWS_PUBLIC_IP = os.getenv("AWS_PUBLIC_IP", "")
+AWS_FILE_PORT = int(os.getenv("AWS_FILE_PORT", "0"))
 
 
 def _get_download_url(output_file: str) -> str:
@@ -165,8 +166,10 @@ def _get_download_url(output_file: str) -> str:
     
     基于 AWS 公网 IP 和文件路径生成下载链接
     格式: http://{IP}:{port}/{filename}
+    
+    未配置 AWS_PUBLIC_IP/AWS_FILE_PORT 时返回空字符串（无文件URL能力）
     """
-    if not output_file:
+    if not output_file or not AWS_PUBLIC_IP or not AWS_FILE_PORT:
         return ""
     
     filename = os.path.basename(output_file)
