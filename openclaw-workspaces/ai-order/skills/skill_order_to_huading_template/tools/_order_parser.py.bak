@@ -542,46 +542,65 @@ def _load_env():
 
 
 def _call_llm(text_content: str, content_type: str = "text") -> Dict[str, Any]:
-    """
-    调用 LLM 解析订单文本
-    
-    使用 LLM Router，支持多种 provider（默认 openclaw 平台内嵌模型）
-    支持故障回退链
-    """
+    """调用 LLM 解析订单文本"""
     try:
-        # 加载 .env
+        import openai
+        for k in ["SOCKS_PROXY", "ALL_PROXY", "HTTPS_PROXY", "HTTP_PROXY"]:
+            os.environ.pop(k, None)
         _load_env()
-        
-        # 构建 prompt
+        api_key = os.getenv("MINIMAX_API_KEY") or os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return {"success": False, "error": "未设置 MINIMAX_API_KEY 或 OPENAI_API_KEY"}
+
         prompt_template = _MULTI_PROMPT_TEMPLATE if content_type == "excel" else _SINGLE_PROMPT_TEMPLATE
-        prompt = prompt_template.format(
-            content=text_content[:12000] if len(text_content) > 12000 else text_content
-        )
-        
-        system_msg = "你是一个专业的订单数据提取专家。请从用户提供的订单内容中准确提取结构化信息。"
-        
-        # 通过 Router 调用 LLM
-        router = _get_llm_router()
-        response = router.chat(system=system_msg, user=prompt)
-        
-        raw_output = response.text
-        
-        # 解析 JSON（与原来逻辑一致）
+        prompt = prompt_template.format(content=text_content[:12000] if len(text_content) > 12000 else text_content)
+
+        # 优先使用 MiniMax
+        if os.getenv("MINIMAX_API_KEY"):
+            client = openai.OpenAI(
+                api_key=api_key,
+                base_url="https://api.minimax.chat/v1",
+            )
+            response = client.chat.completions.create(
+                model="MiniMax-M2.7",
+                messages=[
+                    {"role": "system", "content": "你是一个专业的订单数据提取专家。请从用户提供的订单内容中准确提取结构化信息。"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=4000
+            )
+        else:
+            client = openai.OpenAI(api_key=api_key)
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "你是一个专业的订单数据提取专家。请从用户提供的订单内容中准确提取结构化信息。"},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=4000
+            )
+
+        raw_output = response.choices[0].message.content.strip()
+
+        # 解析 JSON
         if raw_output.startswith("```"):
             raw_output = raw_output.split("```")[1]
             if raw_output.startswith("json"):
                 raw_output = raw_output[4:]
             raw_output = raw_output.strip().strip("```")
-        
+
         # 移除思考过程标签
-        raw_output = re.sub(r'', '', raw_output, flags=re.DOTALL)
+        raw_output = re.sub(r'<think>.*?</think>', '', raw_output, flags=re.DOTALL)
         raw_output = re.sub(r'<!--.*?-->', '', raw_output, flags=re.DOTALL)
         raw_output = raw_output.strip()
-        
+
         return _parse_llm_raw(raw_output)
-        
     except Exception as e:
         return {"success": False, "error": f"LLM调用失败: {str(e)}"}
+
+
 def _parse_llm_raw(raw_output: str) -> Dict[str, Any]:
     """解析 LLM 原始输出"""
     code_blocks = raw_output.split("```")
