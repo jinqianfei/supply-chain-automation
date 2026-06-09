@@ -405,24 +405,10 @@ class OrderToHuadingTemplate:
                 "password": os.getenv("DB_PASSWORD", "")
             }
             
-            # 如果密码为空，尝试读取 .env 文件
+            # 如果密码为空，尝试读取 .env 文件（统一函数：db.connection._load_dotenv_to_environ）
             if not db_config.get("password"):
-                env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", ".env")
-                if os.path.exists(env_path):
-                    try:
-                        with open(env_path) as f:
-                            for line in f:
-                                line = line.strip()
-                                if not line or line.startswith("#"):
-                                    continue
-                                if "=" in line:
-                                    k, v = line.split("=", 1)
-                                    k = k.strip()
-                                    if k == "DB_PASSWORD":
-                                        db_config["password"] = v.strip()
-                                        break
-                    except Exception:
-                        pass
+                _load_dotenv_to_environ()
+                db_config["password"] = os.getenv("DB_PASSWORD", "")
         
         # 检查配置是否完整
         config_status = self.check_config(db_config)
@@ -441,21 +427,8 @@ class OrderToHuadingTemplate:
         os.environ.pop("no_proxy", None)
         os.environ.pop("NO_PROXY", None)
 
-        # 从 .env 文件加载环境变量（如果存在）
-        env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", ".env")
-        if os.path.exists(env_path):
-            try:
-                with open(env_path) as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        if "=" in line:
-                            k, v = line.split("=", 1)
-                            if k not in os.environ:
-                                os.environ[k.strip()] = v.strip()
-            except Exception:
-                pass
+        # 从 .env 文件加载环境变量（统一函数）
+        _load_dotenv_to_environ()
 
         self.shipper_id = None  # 不再直接传入，通过门店匹配获取
         self.db_config = db_config
