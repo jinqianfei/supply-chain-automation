@@ -25,6 +25,7 @@ if _SKILL_ROOT not in sys.path:
     sys.path.insert(0, _SKILL_ROOT)
 
 from db.connection import get_connection, get_default_db_config
+from db.table_names import SKU_TABLE, WAREHOUSE_TABLE, ALIAS_TABLE, STORE_TABLE, ACTIVE_STATUS, SKU_CACHE_LIMIT, SKU_MATCH_LIMIT
 
 
 def _clean_product_name(name: str) -> str:
