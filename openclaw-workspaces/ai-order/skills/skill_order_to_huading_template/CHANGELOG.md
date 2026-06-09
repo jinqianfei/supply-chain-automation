@@ -5,6 +5,26 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.11.1] - 2026-06-09
+
+### Fixed
+- **关键 bug**：`_match_sku()` 返回的 `sku_results` 缺 `quantity`/`unit`/`spec`/`seq` 字段
+  - 根因：`tools/_sku_mapper.py:map_sku_batch()` 调用 `_build_result()` 构造匹配结果，但 `_build_result` 只返回匹配元数据（sku_code/sku_name/unit_type），不返回订单原 quantity
+  - 表现：调用方 `__init__._match_sku` 用 `r.get("quantity", 0)` 拿不到 → 默认 0 → 最终 31 字段 Excel 的「出库数量」列恒为 0
+  - 修复：在 `map_sku_batch` 循环里显式注入 `result["quantity"] = item.get("quantity", 0)` 等
+  - 影响：v5.9.0 commit message 声称修复「_build_result 缺字段」但**实际未覆盖 quantity**，v5.11.0 LLM Router 重构也未涉及 → 5.11.1 补齐
+
+### Verified
+- 端到端用 2 个真实订单回归测试（`docs/test_data/test_set_A_history回流.json`）：
+  - **1号 洪洪通** (1店1项 椰子水950ml 10件) → `SK231013000200` 大单位 12瓶/件 → 出库数量=10 ✅
+  - **9号 天津仓** (2店11项) → 11/11 全部 GT SKU 匹配 → 出库数量=2,1,1,1,1,1,1,2,2,1,2 ✅
+  - **总计 12/12 = 100% GT 准确率**
+
+### Notes
+- 测试 xlsx 临时放在 `data/test_orders/`，如不需要可删
+- 临时测试脚本 `test_order9_e2e.py` 可删
+- `_build_result()` 未改（避免破坏 Layer 2/3 模糊匹配的其它调用方）
+
 ## [5.9.0] - 2026-06-05
 
 ## [5.11.0] - 2026-06-09
