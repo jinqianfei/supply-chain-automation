@@ -30,40 +30,24 @@ from db.table_names import SKU_TABLE, WAREHOUSE_TABLE, ALIAS_TABLE, STORE_TABLE,
 
 def _clean_product_name(name: str) -> str:
     """
-    清洗订单商品名称：去除规格描述，保留核心商品名
+    清洗订单商品名称：去除括号内容，保留核心商品名
     
     规则：
-    1. 如果"—"在括号内容之后，去除"—"后的别名后缀
-       例如：鱼你幸福青花椒酱料（新款）—原椒麻酱料 → 鱼你幸福青花椒酱料
-    2. 如果"—"在括号内容之前或没有括号，则保留（它是产品名的一部分）
-       例如：冻品—鱼你幸福猪肉片（1KG*12包/箱） → 冻品鱼你幸福猪肉片
-    3. 去除所有括号及其内容
+    1. 只去除括号及其内容（括号通常是规格/别名描述）
+    2. 保留所有连接符（-、—、_）和空格，因为它们可能是商品名的一部分
+    3. 例如：
+       - 辣白菜D-X-H → 辣白菜D-X-H （保留）
+       - 鱼你幸福青花椒酱料（新款） → 鱼你幸福青花椒酱料
+       - 冻品—鱼你幸福猪肉片（1KG*12包/箱） → 冻品—鱼你幸福猪肉片
+    
+    修复记录（2026-06-09）：
+    - 原逻辑错误去掉了 - 和连接符，导致 Layer 1 精确匹配失败
+    - 例如 辣白菜D-X-H 被洗成 辣白菜DXH，与数据库不匹配
     """
-    original_name = name
-    
-    # 提取括号内容
-    bracket_match = re.search(r'[（(]([^)）]+)[)）]', name)
-    bracket_content = bracket_match.group(1) if bracket_match else ""
-    
-    # 找到括号内容的位置
-    bracket_pos = -1
-    if bracket_content:
-        bracket_pos = name.find(f'（{bracket_content}）')
-        if bracket_pos == -1:
-            bracket_pos = name.find(f'({bracket_content})')
-    
-    # 如果有括号，且括号后有"—"，去除"—"及之后的内容
-    if bracket_content and bracket_pos >= 0:
-        after_bracket = name[bracket_pos + len(bracket_content) + 2:]
-        if after_bracket and re.match(r'^[—–\-]', after_bracket):
-            name = name[:bracket_pos + len(bracket_content) + 2]
-    
     # 去除所有括号及其内容
     cleaned = re.sub(r'[（(][^)）]*[)）]', '', name)
-    
-    # 去除多余的空格和连接符
-    cleaned = re.sub(r'[\s\-—–]+', '', cleaned)
-    
+    # 去除多余空格，但保留连接符（-、—、_）
+    cleaned = re.sub(r'\s+', '', cleaned)
     return cleaned.strip()
 
 
