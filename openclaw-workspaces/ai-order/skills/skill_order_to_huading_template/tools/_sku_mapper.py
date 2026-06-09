@@ -213,7 +213,7 @@ def _has_core_word_match(clean_name: str, sku_name: str) -> bool:
 def map_sku(owner_code: str, product_name: str, unit: str = "",
             db_config: Optional[dict] = None) -> dict:
     """
-    SKU映射 - 5层匹配策略，查 product_sku 表，按 shipper_id 过滤
+    SKU映射 - 5层匹配策略，查 SKU_TABLE 表，按 shipper_id 过滤
     
     Layer 0: 别名表查表（完整订单商品名精确匹配）
     Layer 1: 精确匹配（sku_name 或 customer_code 完全一致）
