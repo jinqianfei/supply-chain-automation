@@ -256,3 +256,41 @@
 | 41 | `manage_monitors` | 管理定时巡检任务 |
 | 42 | `manage_event_triggers` | 管理事件触发器 |
 | 43 | `emit_event` | 发射系统事件 |
+
+---
+
+## 钉钉 CLI (DingTalk Workspace CLI)
+
+**工具路径:** `/opt/homebrew/bin/dws`
+**认证状态:** 已登录（全局有效，Token 有效期至当天17:35）
+
+### 常用命令
+
+```bash
+# 文档操作
+dws doc list                    # 列出文档
+dws doc search <关键词>         # 搜索文档
+dws doc create --title <标题>   # 创建文档
+dws doc read <文档ID>           # 读取文档内容
+dws doc update <文档ID>         # 更新文档
+dws doc folder                  # 文件夹管理
+
+# 其他产品域
+dws aitable                     # AI表格
+dws calendar                    # 日历日程
+dws chat                        # 群聊消息
+dws wiki                        # 知识库
+dws mail                        # 邮箱
+```
+
+### 输出格式
+```bash
+dws doc list -f json            # JSON输出（默认）
+dws doc list -f table           # 表格输出
+dws doc list -f pretty          # 美化输出
+dws doc list --dry-run          # 预览模式（不执行）
+```
+
+### 认证信息
+- Corp ID: `ding5392f470b795a632f5bf40eda33b7ba0`
+- Token 自动刷新，无需手动操作

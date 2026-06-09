@@ -321,3 +321,32 @@ This is a starting point. Add your own conventions, style, and rules as you figu
 | JTBD | JTBD框架 |
 | AI产品 | AI产品设计 |
 
+
+
+---
+
+### 📚 文档规范
+
+每次任务开始前，必须读取 `文档规范.md` 了解项目文档管理规则：
+- 自动读取 iCloud ProductManagement 中的项目概览和最新文档
+- 任务完成后将文档迁移到 ProductManagement 对应目录
+- 文档路径：iCloud → ProductManagement/{产品线}/
+
+
+---
+
+## 📋 记忆系统
+
+**按需读取：**
+- 提到某项目 → 读 `memory/projects/<项目>/PROJECT.md` + `sessions/INDEX.md`
+- 提到凭证/密码 → 读 `memory/credentials/INDEX.md`
+- 提到"继续上次" → 读对应项目的最新 sessions/ 记录
+- 提到"之前说过" → 读 `MEMORY.md`
+
+**每次结束会话时必须执行：**
+1. 执行 `memory/SESSION_END_PROTOCOL.md`
+2. 更新 `MEMORY.md`「最近会话摘要」
+3. 更新 `projects/<项目>/sessions/` + `skills/INDEX.md`
+
+**参考：** `memory/SESSION_START_PROTOCOL.md`、`memory/SESSION_END_PROTOCOL.md`、`memory/projects/PROJECT_TEMPLATE.md`
+

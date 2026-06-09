@@ -11,10 +11,10 @@ from skills.skill_order_to_huading_template import OrderToHuadingTemplate
 
 skill = OrderToHuadingTemplate(
     db_config={
-        "host": "localhost",
+        "host": "agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com",
         "port": 5432,
         "database": "neo",
-        "user": "jinqianfei"
+        "user": "agenthub"
     }
 )
 
@@ -74,10 +74,10 @@ skill.execute() 返回 need_ocr=True
 
 | 配置项 | 值 |
 |--------|-----|
-| Host | localhost |
+| Host | agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com (AWS RDS) |
 | Port | 5432 |
-| Database | **neo**（不是 neondb） |
-| User | jinqianfei |
+| Database | **neo** |
+| User | agenthub |
 
 ### 数据库表（v5.8）
 
