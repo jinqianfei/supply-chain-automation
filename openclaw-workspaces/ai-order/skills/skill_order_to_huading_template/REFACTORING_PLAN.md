@@ -74,7 +74,7 @@ Step 5: _generate_multi_store_template() → 31字段Excel
 | Host | localhost |
 | Port | 5432 |
 | Database | **neo**（不是 neondb）|
-| User | jinqianfei |
+| User | `${DB_USER}` (环境变量) |
 
 ---
 

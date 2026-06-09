@@ -22,7 +22,7 @@ def get_connection(db_config: Optional[dict] = None):
         host=config.get("host", "localhost"),
         port=config.get("port", 5432),
         database=config.get("database", "neo"),
-        user=config.get("user", "jinqianfei"),
+        user=config.get("user", os.getenv("DB_USER", "your_username")),
         password=config.get("password", "")
     )
     return conn
@@ -45,6 +45,6 @@ def _load_db_config() -> dict:
         "host": "localhost",
         "port": 5432,
         "database": "neo",
-        "user": "jinqianfei",
+        "user": "your_username",
         "password": ""
     }

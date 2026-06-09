@@ -875,8 +875,13 @@ def _init_feedback_collector():
     from db.connection import get_connection  # Skill 自带
     # FeedbackCollector 需要 db_config dict
     # Skill自身有 self.db_config，直接复用
-    return FeedbackCollector({"host": "localhost", "port": 5432,
-                               "database": "neo", "user": "jinqianfei", "password": ""})
+    return FeedbackCollector({
+        "host": os.getenv("DB_HOST", "localhost"),
+        "port": int(os.getenv("DB_PORT", "5432")),
+        "database": os.getenv("DB_NAME", "neo"),
+        "user": os.getenv("DB_USER", "your_username"),
+        "password": os.getenv("DB_PASSWORD", ""),
+    })
 
 # Skill 实例化时自动初始化（加在 __init__ 顶部）
 _feedback_collector = _init_feedback_collector()

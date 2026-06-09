@@ -256,7 +256,7 @@ class OrderToHuadingTemplate:
                 "host": {"type": "string", "default": "localhost", "description": "数据库主机地址"},
                 "port": {"type": "int", "default": "5432", "description": "数据库端口"},
                 "database": {"type": "string", "default": "neo", "description": "数据库名称"},
-                "user": {"type": "string", "default": "jinqianfei", "description": "数据库用户名"},
+                "user": {"type": "string", "default": "your_username", "description": "数据库用户名"},
                 "password": {"type": "string", "default": "", "description": "数据库密码（必填）"}
             }
         }
@@ -322,7 +322,7 @@ class OrderToHuadingTemplate:
         "host": "localhost",     # 数据库主机
         "port": 5432,            # 数据库端口
         "database": "neo",        # 数据库名称（不是 neondb）
-        "user": "jinqianfei",    # 数据库用户名
+        "user": "your_username",    # 数据库用户名
         "password": "***"        # 数据库密码（必填）
     }
 
@@ -334,7 +334,7 @@ class OrderToHuadingTemplate:
                 "host": os.getenv("DB_HOST", "localhost"),
                 "port": int(os.getenv("DB_PORT", "5432")),
                 "database": os.getenv("DB_NAME", "neo"),
-                "user": os.getenv("DB_USER", "jinqianfei"),
+                "user": os.getenv("DB_USER", "your_username"),
                 "password": os.getenv("DB_PASSWORD", "") or "（未配置）"
             }
         }
