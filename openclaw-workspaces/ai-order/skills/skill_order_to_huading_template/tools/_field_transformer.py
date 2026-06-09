@@ -228,7 +228,9 @@ def _transform_store(store_data: Dict, field_aliases: Dict) -> tuple:
             warnings.append(f"商品「{product_name}」数量异常({quantity})，已设为0")
 
         unified_items.append({
+            "seq": item.get("seq", idx + 1),
             "product_name": clean_text(product_name),
+            "spec": clean_text(spec),
             "product_spec": clean_text(spec),
             "unit": clean_text(unit),
             "quantity": quantity,
