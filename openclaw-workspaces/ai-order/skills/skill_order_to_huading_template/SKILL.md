@@ -456,12 +456,29 @@ Step 5: _generate_multi_store_template()
 
 ## 7. 数据库配置
 
+通过环境变量配置（推荐）：
+
+```bash
+# .env 文件（**不要**提交到 git）
+DB_HOST=your-db-host.amazonaws.com
+DB_PORT=5432
+DB_NAME=neo
+DB_USER=your_user
+DB_PASSWORD=your_password
+DB_SSLMODE=prefer
+```
+
+或者代码里传 `db_config`：
+
 ```python
+import os
 db_config = {
-    "host": "localhost",
-    "port": 5432,
-    "database": "neo",  # 注意：不是 neondb
-    "user": "jinqianfei"
+    "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", "5432")),
+    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "sslmode": os.getenv("DB_SSLMODE", "prefer"),
 }
 ```
 
@@ -479,10 +496,17 @@ db_config = {
 ```python
 from skills.skill_order_to_huading_template import OrderToHuadingTemplate
 
-skill = OrderToHuadingTemplate(db_config={
-    "host": "localhost", "port": 5432,
-    "database": "neo", "user": "jinqianfei"
-})
+# 推荐：使用环境变量
+import os
+db_config = {
+    "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", "5432")),
+    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+}
+
+skill = OrderToHuadingTemplate(db_config=db_config)
 
 # Excel订单
 result = skill.execute(
@@ -537,7 +561,7 @@ if result.get("need_store_confirm"):
 
 ## 11. 配置检查清单
 
-- [X] **数据库连接** — 必填（db_config），使用 localhost:5432/neo
+- [X] **数据库连接** — 必填（db_config），使用环境变量 `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD`
 - [X] **product_sku 表** — SKU主表（当前1832条）
 - [X] **product_name_alias 表** — 别名映射表（当前30条）
 - [X] **store_list 表** — 门店数据（当前~714条）
