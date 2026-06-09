@@ -19,7 +19,7 @@ def get_connection(db_config: Optional[dict] = None):
     config = db_config or _load_db_config()
     
     conn = psycopg2.connect(
-        host=config.get("host", "localhost"),
+        host=config.get("host", os.getenv("DB_HOST", "your_db_host")),
         port=config.get("port", 5432),
         database=config.get("database", "neo"),
         user=config.get("user", os.getenv("DB_USER", "your_username")),
