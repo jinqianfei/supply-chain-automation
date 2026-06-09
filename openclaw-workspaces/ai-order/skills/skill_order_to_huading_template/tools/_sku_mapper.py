@@ -571,6 +571,7 @@ def map_sku_batch(owner_code: str, items: List[Dict],
         spec = item.get("spec", "")
         unit = item.get("unit", "件")
         seq = item.get("seq", 0)
+        quantity = item.get("quantity", 0)
 
         result = _map_single_in_batch(
             owner_code, clean_name_text(product_name),
@@ -580,11 +581,18 @@ def map_sku_batch(owner_code: str, items: List[Dict],
         )
 
         if result["matched"]:
+            # 【Bugfix 2026-06-09】把订单原 quantity/unit/spec 透传进 result
+            # 之前 _build_result 不返回 quantity，导致 __init__._match_sku 里
+            # r.get("quantity", 0) 拿到默认值 0，最终 31 字段 Excel 的"出库数量"列 = 0
+            result["quantity"] = quantity
+            result["unit"] = unit
+            result["spec"] = spec
+            result["seq"] = seq
             results.append(result)
         else:
             unmatched_items.append({
                 "seq": seq, "product_name": product_name,
-                "spec": spec, "quantity": item.get("quantity", 0), "unit": unit})
+                "spec": spec, "quantity": quantity, "unit": unit})
 
     return results, unmatched_items
 
