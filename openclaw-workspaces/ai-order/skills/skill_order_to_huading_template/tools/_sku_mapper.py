@@ -269,7 +269,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
     cur.execute("""
         SELECT p.sku_code, p.sku_name, p.unit, p.unit_type, p.conversion_ratio, p.product_spec, p.customer_code
         FROM product_name_alias a
-        JOIN product_sku p ON p.sku_name = a.system_product_name AND p.shipper_id = a.shipper_id
+        JOIN {SKU_TABLE} p ON p.sku_name = a.system_product_name AND p.shipper_id = a.shipper_id
         WHERE a.shipper_id = %s AND a.order_product_name = %s
         ORDER BY p.unit_type DESC
         LIMIT 3
@@ -363,7 +363,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
                 return result
     
     # ========== Layer 2.5: 全量相似度匹配（始终执行，当Layer 2无结果时兜底） ==========
-    cur.execute("SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code FROM product_sku WHERE shipper_id = %s AND status = 'ACTIVE' LIMIT 200", (owner_code,))
+    cur.execute("SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code FROM {SKU_TABLE} WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}' LIMIT {SKU_CACHE_LIMIT}", (owner_code,))
     all_skus = cur.fetchall()
     if all_skus:
         scored = []
@@ -407,7 +407,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
     
     all_matches = []
     for keyword in keywords:
-        cur.execute("SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code FROM product_sku WHERE shipper_id = %s AND status = 'ACTIVE' AND sku_name LIKE %s LIMIT 20", (owner_code, f"%{keyword}%"))
+        cur.execute("SELECT sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code FROM {SKU_TABLE} WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}' AND sku_name LIKE %s LIMIT {SKU_MATCH_LIMIT}", (owner_code, f"%{keyword}%"))
         rows = cur.fetchall()
         for r in rows:
             # 核心词校验 - 排除不同口味调料的错误匹配
@@ -567,7 +567,7 @@ def map_sku_batch(owner_code: str, items: List[Dict],
         SELECT a.order_product_name, p.sku_code, p.sku_name, p.unit, p.unit_type,
                p.conversion_ratio, p.product_spec, p.customer_code
         FROM product_name_alias a
-        JOIN product_sku p ON p.sku_name = a.system_product_name AND p.shipper_id = a.shipper_id
+        JOIN {SKU_TABLE} p ON p.sku_name = a.system_product_name AND p.shipper_id = a.shipper_id
         WHERE a.shipper_id = %s
     """, (owner_code,))
     alias_rows = {r[0]: r[1:] for r in cur.fetchall()}  # order_product_name -> (sku_code, sku_name, ...)
