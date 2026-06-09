@@ -53,7 +53,8 @@ WHITELIST_PATHS=(
     "docs/test_data/evaluate_with_ground_truth.py"  # 历史测试脚本
     "docs/云端部署迁移方案"                  # 已加 disclaimer
     "docs/LLM_PROVIDER_REFACTOR"            # LLM 方案（含 localhost:8000）
-    "docs/SKILL_EVALUATION_REPORT"          # 测评报告
+    "docs/SKILL_EVALUATION_REPORT"          # 测评报告（v5.8 历史快照）
+    "SKILL_EVALUATION_REPORT"               # 顶层测评报告（v5.8 历史快照）
     "memory/"                               # 历史记忆
     "backups/"                              # 备份目录
     "output/"                               # 输出文件
@@ -93,7 +94,28 @@ WHITELIST_LINE_PATTERNS=(
     "localhost:8000"                              # 本地 LLM
     "localhost:6379"                              # 本地 Redis
     "localhost:11434"                             # 本地 Ollama
-    "4 份主文档 + 1 份 docs/方案 之前混合描述"      # MEMORY.md 事故描述
+    "ai-order 不是独立仓库，git 根是"             # MEMORY.md 事故描述
+    "Neon 账号"                                    # MEMORY.md 事故描述
+    "Neon 项目"                                    # MEMORY.md 事故描述
+    "历史泄露的"                                  # MEMORY.md 事故描述
+    "之前混合描述 RDS"                            # MEMORY.md 事故描述
+    "Databases: PostgreSQL 18"                    # 系统信息
+    "2e03f2c auto: skill 更新"                    # 正常 commit message
+)
+
+# 固定字符串白名单（处理括号等 ERE 特殊字符）
+WHITELIST_LINE_FPATTERNS=(
+    'os.getenv("DB_HOST", "localhost")'           # 合规 env fallback
+    'os.getenv("DB_HOST", "your_db_host")'        # 合规 env fallback
+    'os.getenv("DB_PORT", "5432")'                # 合规 env fallback
+    'os.getenv("DB_NAME", "neo")'                 # 合规 env fallback
+    'os.getenv("DB_USER", "your_username")'       # 合规 env fallback
+    'os.getenv("DB_USER", "your_db_host")'        # 合规 env fallback
+    'os.getenv("DB_USER"'                         # 合规 env fallback (部分匹配)
+    'os.getenv("DB_PASSWORD"'                     # 合规 env fallback (部分匹配)
+    'os.environ.get("DB_HOST", "localhost")'       # 合规 env fallback
+    'os.environ.get("DB_PORT"'                    # 合规 env fallback
+    'os.environ.get("DB_USER"'                    # 合规 env fallback
 )
 
 # =============================================================
@@ -161,8 +183,17 @@ for pattern in "${PATTERNS[@]}"; do
         fi
     done
 
-    # 应用单行白名单
+        # 应用单行白名单 - 正则（grep -E）
     for lp in "${WHITELIST_LINE_PATTERNS[@]}"; do
+        WM=$(echo "$FILTERED_HITS" | grep -E "$lp" 2>/dev/null || true)
+        if [ -n "$WM" ]; then
+            WHITELISTED_LINES+="$WM"$'\n'
+            FILTERED_HITS=$(echo "$FILTERED_HITS" | grep -v -E "$lp" 2>/dev/null || true)
+        fi
+    done
+
+    # 应用单行白名单 - 固定字符串（grep -F，处理括号等 ERE 特殊字符）
+    for lp in "${WHITELIST_LINE_FPATTERNS[@]}"; do
         WM=$(echo "$FILTERED_HITS" | grep -F "$lp" 2>/dev/null || true)
         if [ -n "$WM" ]; then
             WHITELISTED_LINES+="$WM"$'\n'

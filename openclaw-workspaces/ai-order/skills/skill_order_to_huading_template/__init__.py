@@ -391,12 +391,14 @@ class OrderToHuadingTemplate:
             output_dir: 输出目录（可选，默认./output）
         """
         # 如果db_config为空，尝试从环境变量读取
+        # 注意：fallback 必须是中性值（localhost/your_username/your_db_host）
+        # 严禁 fallback 到具体的主机名/用户名（防止泄露或错连）
         if not db_config:
             db_config = {
-                "host": os.getenv("DB_HOST", "agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com"),
+                "host": os.getenv("DB_HOST") or "localhost",
                 "port": int(os.getenv("DB_PORT", "5432")),
-                "database": os.getenv("DB_NAME", "neo"),
-                "user": os.getenv("DB_USER", "agenthub"),
+                "database": os.getenv("DB_NAME") or "neo",
+                "user": os.getenv("DB_USER") or "your_username",
                 "password": os.getenv("DB_PASSWORD", "")
             }
             
