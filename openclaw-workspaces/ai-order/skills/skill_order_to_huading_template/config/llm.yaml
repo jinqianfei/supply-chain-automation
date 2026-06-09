@@ -1,0 +1,74 @@
+# ============================================================
+# LLM Provider 配置
+# 加新 provider = 在 providers 下加一段，**不改代码**
+# ============================================================
+
+# 默认 provider（必须存在）
+default: openclaw
+
+# 故障回退链（按顺序尝试）
+fallbacks:
+  - minimax
+  - openai
+  - deepseek
+
+# ============================================================
+# Provider 定义
+# ============================================================
+
+providers:
+  # ===== 平台内嵌模型（推荐默认）=====
+  # 无需任何配置，自动用当前 OpenClaw agent 的模型
+  openclaw:
+    type: openclaw
+    # 当前 agent 模型: minimax-portal/MiniMax-M3
+
+  # ===== OpenAI 官方 API =====
+  openai:
+    type: openai
+    api_key: "${OPENAI_API_KEY}"
+    model: "gpt-4o"
+
+  # ===== OpenAI 兼容 API（一个 type 通吃所有）=====
+  minimax:
+    type: openai_compat
+    alias: "MiniMax"
+    base_url: "https://api.minimax.chat/v1"
+    api_key: "${MINIMAX_API_KEY}"
+    model: "MiniMax-M2.7"
+
+  deepseek:
+    type: openai_compat
+    alias: "DeepSeek"
+    base_url: "https://api.deepseek.com/v1"
+    api_key: "${DEEPSEEK_API_KEY}"
+    model: "deepseek-chat"
+
+  qwen:
+    type: openai_compat
+    alias: "Qwen"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    api_key: "${QWEN_API_KEY}"
+    model: "qwen-plus"
+
+  kimi:
+    type: openai_compat
+    alias: "Kimi"
+    base_url: "https://api.moonshot.cn/v1"
+    api_key: "${KIMI_API_KEY}"
+    model: "moonshot-v1-8k"
+
+  # ===== 非 OpenAI 协议（用 custom_http 兜底）=====
+  # 示例：Anthropic Claude（非 OpenAI 协议）
+  # claude:
+  #   type: custom_http
+  #   alias: "Claude"
+  #   url: "https://api.anthropic.com/v1/messages"
+  #   headers:
+  #     "x-api-key": "${ANTHROPIC_API_KEY}"
+  #     "anthropic-version": "2023-06-01"
+  #   extra_body:
+  #     model: "claude-3-5-sonnet-20241022"
+  #     max_tokens: 4000
+  #   text_path: "content.0.text"
+  #   timeout: 60
