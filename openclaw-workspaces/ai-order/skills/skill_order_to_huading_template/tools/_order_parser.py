@@ -13,6 +13,29 @@ import re
 import json
 from typing import Optional, Dict, Any
 
+# LLM Router 导入
+try:
+    from learn.llm import LLMRouter
+except ImportError:
+    LLMRouter = None  # 兼容：未安装 LLM 模块时降级到旧逻辑
+
+
+# 全局 Router 实例（延迟初始化）
+_llm_router = None
+
+
+def _get_llm_router():
+    """获取 LLM Router 实例（延迟初始化）"""
+    global _llm_router
+    if _llm_router is None:
+        if LLMRouter is None:
+            raise RuntimeError("LLM Router 模块未安装，无法调用 LLM")
+        # 配置文件路径：相对于 skill 目录
+        skill_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(skill_dir, "config", "llm.yaml")
+        _llm_router = LLMRouter(config_path)
+    return _llm_router
+
 
 # =============================================================================
 # 公共入口函数
