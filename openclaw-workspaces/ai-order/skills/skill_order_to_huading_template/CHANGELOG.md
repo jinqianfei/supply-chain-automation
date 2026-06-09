@@ -7,6 +7,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [5.11.1] - 2026-06-09
 
+### Added
+- **硬编码清理**：消除所有 P0/P1 机器特定/环境依赖
+  - P0 修复：RDS 主机 fallback（`agenthub-db...` → localhost）、AWS IP 改环境变量、SKU mapper 调统一连接、sync_check 改 `$HOME`、测试路径改 tempfile
+  - P1 修复：抽 `_load_dotenv_to_environ()` 统一函数、抽 `HUADING_FIELDS` 到 yaml（消除双定义）、抽表名常量到 `db/table_names.py`
+  - 评估：移植成熟度从 ⭐⭐½ 提升到 ⭐⭐⭐ (跨机器可跑)
+  - 新增 `DOTENV_PATH` 环境变量可指定 .env 文件位置
+  - 新增 `AWS_PUBLIC_IP` / `AWS_FILE_PORT` 环境变量控制文件下载 URL
+
 ### Fixed
 - **关键 bug**：`_match_sku()` 返回的 `sku_results` 缺 `quantity`/`unit`/`spec`/`seq` 字段
   - 根因：`tools/_sku_mapper.py:map_sku_batch()` 调用 `_build_result()` 构造匹配结果，但 `_build_result` 只返回匹配元数据（sku_code/sku_name/unit_type），不返回订单原 quantity
