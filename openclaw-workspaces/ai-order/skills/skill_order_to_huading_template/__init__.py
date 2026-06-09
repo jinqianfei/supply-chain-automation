@@ -1654,21 +1654,28 @@ class OrderToHuadingTemplate:
                     order_data = None
                     extracted_from = "pdf"
             elif order_type == "text":
-                # 【新增】优先使用 LLM 解析，失败则 fallback 到正则
+                # Step 1/2: 文本也走 tools/order_parser + field_transformer，
+                # 避免 __init__.py 和 tools/_order_parser.py 维护两套解析逻辑。
                 try:
-                    llm_result = self.parse_with_llm(order_input, content_type="text")
-                    if llm_result.get("success"):
-                        order_data = object.__getattribute__(self, '_normalize_llm_result')(llm_result)
-                        order_data["_parse_method"] = "llm"
-                        order_data["_llm_confidence"] = llm_result.get("confidence", 0)
+                    parsed_result = self.tools_parse(order_input, order_type="text")
+                    if parsed_result.get("success"):
+                        order_data = parsed_result
+                        order_data["_parse_method"] = "tools_parse"
                     else:
-                        raise ValueError(f"LLM解析失败: {llm_result.get('error', '未知错误')}")
-                except Exception as llm_err:
-                    # LLM 解析失败，fallback 到正则解析
-                    order_data = object.__getattribute__(self, '_parse_text')(order_input)
-                    if order_data:
-                        order_data["_parse_method"] = "regex_fallback"
-                        order_data["_parse_error"] = str(llm_err)
+                        return {
+                            **get_friendly_error("E101", parsed_result.get("error", "订单解析失败")),
+                            "extracted_from": "text"
+                        }
+                except Exception as parse_err:
+                    return {
+                        **get_friendly_error("E101", str(parse_err)),
+                        "extracted_from": "text"
+                    }
+
+                try:
+                    order_data = self.tools_transform(order_data)
+                except Exception as transform_err:
+                    order_data.setdefault("_warnings", []).append(f"规则库转换异常: {str(transform_err)}")
                 extracted_from = "text"
             else:
                 # excel - 【新增】优先使用 LLM 解析，失败则 fallback 到正则
