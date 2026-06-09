@@ -7,6 +7,23 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [5.9.0] - 2026-06-05
 
+## [5.11.0] - 2026-06-09
+
+### Added
+- **LLM Provider 重构**：从硬编码（MiniMax/OpenAI）升级为配置驱动的多 provider 系统
+- 新增 `learn/llm/` 模块：4 种 Provider 实现（OpenClaw/OpenAI/OpenAICompat/CustomHTTP）
+- 新增 `config/llm.yaml`：加新 provider 只改 YAML，不改代码
+- **默认使用 OpenClaw 平台内嵌模型**：`openclaw infer model run`，零 API key、自动用当前 agent 模型
+- 故障回退链：default 挂了自动试 fallbacks
+- `_call_llm` 从 60 行缩到 12 行，业务逻辑完全无感
+
+### Changed
+- `tools/_order_parser.py` 接入 LLMRouter
+
+### Notes
+- 本次重构解决了「skill 无法直接用平台模型」的问题
+- 与 Phase 3.0 字段名采集正交，可独立演进
+- 建议：先部署 5.11.0 验证 LLM Router，再做 Phase 3.0
 ### Added
 - **技术锁**：`OrderToHuadingTemplate` 类通过 `__getattribute__` 拦截内部函数调用
 - 防止 AI 跳过 `execute()` 主入口直接调用 `_match_store()` / `_match_sku()` 等内部函数
