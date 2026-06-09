@@ -46,7 +46,7 @@ def get_warehouse_code(warehouse_name: str, db_config: Optional[dict] = None) ->
     cur = conn.cursor()
     
     cur.execute("""
-        SELECT warehouse_code FROM warehouse_code_mapping
+        SELECT warehouse_code FROM {WAREHOUSE_TABLE}
         WHERE warehouse_name = %s
     """, (warehouse_name,))
     
