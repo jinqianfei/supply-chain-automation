@@ -4,23 +4,23 @@
 华鼎模板格式固定，不做规则配置
 """
 import os
+import sys
 import json
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 import yaml
 from db.connection import get_connection
 
+# 允许独立运行：加入 skill 根目录
+_SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _SKILL_ROOT not in sys.path:
+    sys.path.insert(0, _SKILL_ROOT)
 
-# 华鼎31字段
-HUADING_FIELDS = [
-    "序号", "门店编号", "门店三方编码", "仓库编码", "加急程度\n（0：普通，1：加急）",
-    "商品SKU编号", "商品三方SPEC编号", "单位类型", "出库数量",
-    "指定库存状态", "出库类型", "配送方式", "指定车型（专配）",
-    "是否垫付", "付款方式", "快递公司", "单价", "总金额",
-    "是否制定批次", "批次号", "生产日期", "备注", "生产厂家编号",
-    "门店收货地址编码", "三方单号", "业务模式", "业务类型",
-    "收货人", "联系电话", "收货地址", "C端快递公司"
-]
+from config import get_huading_fields  # v5.11.2 统一从 yaml 读
+
+
+# 华鼎31字段（v5.11.2 改为从 yaml 读，保持同名变量向后兼容）
+HUADING_FIELDS = get_huading_fields()
 
 
 def load_defaults() -> dict:
