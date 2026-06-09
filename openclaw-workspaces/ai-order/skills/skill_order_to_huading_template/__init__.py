@@ -525,16 +525,9 @@ class OrderToHuadingTemplate:
     # 标准字段名列表（用于校验）
     STANDARD_FIELDS = list(FIELD_ALIAS_MAPPING.keys())
     
-    # 华鼎模板31字段
-    HUADING_FIELDS = [
-        "序号", "门店编号", "门店三方编码", "仓库编码", "加急程度\n（0：普通，1：加急）",
-        "商品SKU编号", "商品三方SPEC编号", "单位类型", "出库数量",
-        "指定库存状态", "出库类型", "配送方式", "指定车型（专配）",
-        "是否垫付", "付款方式", "快递公司", "单价", "总金额",
-        "是否制定批次", "批次号", "生产日期", "备注", "生产厂家编号",
-        "门店收货地址编码", "三方单号", "业务模式", "业务类型",
-        "收货人", "联系电话", "收货地址", "C端快递公司"
-    ]
+    # 华鼎模板31字段（v5.11.2 统一从 config/template_defaults.yaml 读）
+    # 保留类属性 HUADING_FIELDS 仅为向后兼容，新代码请用 config.get_huading_fields()
+    HUADING_FIELDS = list(_get_huading_fields())
     
     # 有默认值的字段
     DEFAULT_VALUES = {
