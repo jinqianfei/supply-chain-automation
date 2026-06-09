@@ -1,6 +1,6 @@
 """
 OpenClaw 平台内嵌模型 Provider
-通过 openclaw infer model run 调用平台当前 agent 的模型
+通过 openclaw infer model run 调用平台指定模型
 """
 import subprocess
 import json
@@ -12,17 +12,24 @@ class OpenClawProvider(LLMProvider):
     name = "openclaw"
     
     def __init__(self, config: dict = None):
-        """初始化（config 可为空）"""
+        """初始化"""
         self.config = config or {}
+        self.model = self.config.get("model", "minimax-portal/MiniMax-M3")  # 默认用 MiniMax-M3
     
     def chat(self, req: ChatRequest) -> ChatResponse:
         """使用 OpenClaw 平台模型"""
         full_prompt = f"{req.system}\n\n{req.user}"
         
         try:
+            cmd = ["openclaw", "infer", "model", "run",
+                   "--prompt", full_prompt, "--json"]
+            
+            # 如果配置了模型，指定它
+            if self.model:
+                cmd.extend(["--model", self.model])
+            
             result = subprocess.run(
-                ["openclaw", "infer", "model", "run",
-                 "--prompt", full_prompt, "--json"],
+                cmd,
                 capture_output=True, text=True, timeout=60
             )
             
@@ -39,7 +46,7 @@ class OpenClawProvider(LLMProvider):
             return ChatResponse(
                 text=outputs[0].get("text", ""),
                 provider_name=self.name,
-                model=data.get("model", "unknown"),
+                model=data.get("model", self.model),
                 raw=data
             )
             

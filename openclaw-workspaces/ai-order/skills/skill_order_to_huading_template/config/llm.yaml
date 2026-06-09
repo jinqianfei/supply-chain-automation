@@ -20,6 +20,7 @@ providers:
   # ===== 平台内嵌模型（推荐默认）=====
   # 无需任何配置，自动用当前 OpenClaw agent 的模型
   openclaw:
+    model: "minimax-portal/MiniMax-M3"
     type: openclaw
     # 当前 agent 模型: minimax-portal/MiniMax-M3
 
