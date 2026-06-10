@@ -138,7 +138,7 @@ def test_order_complete_event_writes_db():
         "user_modified": False,
         "user_confirmed": True,
         "processing_time_ms": 1234,
-        "skill_version": "5.11.2",
+        "skill_version": "5.13.2",
         "owner_code": "HZ001",
         "source_file": tempfile.gettempdir() + "/test_order.txt",
         "output_file": tempfile.gettempdir() + "/test_output.xlsx",
@@ -175,7 +175,7 @@ def test_order_complete_event_writes_db():
     assert sm_rate == 0.95
     assert u_conf is True
     assert ptime == 1234
-    assert sk_ver == "5.11.2"
+    assert sk_ver == "5.13.2"
     print(f"  ✅ order_feedback 写入成功 (id={fb_id}, session={s_id[:25]}...)")
     print(f"     order_type={o_type}, sku_count={sku_cnt}, store_match_rate={sm_rate}")
 
