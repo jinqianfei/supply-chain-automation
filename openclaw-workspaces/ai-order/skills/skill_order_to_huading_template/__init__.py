@@ -1282,7 +1282,7 @@ class OrderToHuadingTemplate:
         Returns:
             order_parser.parse() 的返回结果
         """
-        from skills.skill_order_to_huading_template.tools._order_parser import parse
+        parse = _import_skill_attr("tools._order_parser", "parse")
         return parse(order_input, order_type=order_type)
 
 
@@ -1301,7 +1301,7 @@ class OrderToHuadingTemplate:
         Returns:
             field_transformer.transform() 的返回结果（统一 JSON）
         """
-        from skills.skill_order_to_huading_template.tools._field_transformer import transform
+        transform = _import_skill_attr("tools._field_transformer", "transform")
         return transform(order_data)
 
     def parse_with_llm(self, content: str, content_type: str = "text") -> Dict[str, Any]:
@@ -1709,9 +1709,9 @@ class OrderToHuadingTemplate:
             "_norm_warnings": warnings
         }
     
-    def execute(self, order_input: str = None, output_file: str = None, order_type: str = "auto", 
-                ocr_result: Dict = None, confirmed_store: Dict = None, 
-                order_data_cache: Dict = None) -> Dict[str, Any]:
+    def execute(self, order_input: str = None, output_file: str = None, order_type: str = "auto",
+                ocr_result: Dict = None, confirmed_store: Dict = None,
+                order_data_cache: Dict = None, confirmed_sku: Union[bool, Dict] = False) -> Dict[str, Any]:
         """
         执行订单转华鼎模板（支持多格式输入）
         
@@ -1745,11 +1745,16 @@ class OrderToHuadingTemplate:
 
         try:
             # 自动检测类型
-            if order_type == "auto":
+            if order_data_cache:
+                order_data = order_data_cache
+                extracted_from = order_data.get("_extracted_from", order_type if order_type != "auto" else "cache")
+            elif order_type == "auto":
                 order_type = object.__getattribute__(self, '_detect_input_type')(order_input)
-            
+
             # 解析订单数据
-            if order_type == "image":
+            if order_data_cache:
+                pass
+            elif order_type == "image":
                 if ocr_result:
                     # 有OCR结果，直接处理
                     order_data = object.__getattribute__(self, '_handle_ocr_result')(ocr_result)
@@ -1856,6 +1861,10 @@ class OrderToHuadingTemplate:
 
             # ========== 多门店处理 vs 单门店处理 ==========
             all_store_results = []  # [{store_info, sku_results, items}, ...]
+            confirmed_stores = _merge_confirmed_store(
+                order_data.get("_confirmed_stores", {}) if isinstance(order_data, dict) else {},
+                confirmed_store,
+            )
 
             if order_data.get("_multi_store") and order_data.get("stores"):
                 # 【多门店模式】遍历每个门店
@@ -1880,10 +1889,16 @@ class OrderToHuadingTemplate:
                         } for i, it in enumerate(store_items)]
 
                     store_name_for_match = store_data.get("store_name", store_key)
+                    confirmed_for_store = _confirmed_store_for(
+                        confirmed_stores, store_key, store_name_for_match
+                    )
 
                     # 门店匹配：用户已确认门店时跳过匹配流程
-                    if confirmed_store:
-                        si = confirmed_store
+                    if confirmed_for_store:
+                        si = confirmed_for_store
+                        si.setdefault("_store_key", store_key)
+                        si.setdefault("store_name_submitted", store_name_for_match)
+                        confirmed_stores[store_key] = si
                         # v5.9.0 Phase 1：emit 门店已确认事件
                         if _HAS_EVENT_BUS:
                             EventBus.emit("store_confirmed", {
@@ -1919,8 +1934,14 @@ class OrderToHuadingTemplate:
                             "possible_customers": si.get("possible_customers", []),
                             "message": f"门店「{store_name_for_match}」未找到匹配，但可能属于以下货主"
                         }
-                    if not confirmed_store and not _is_auto_confirmed_store_match(si):
-                        response = _store_confirm_response(store_name_for_match, si)
+                    if not confirmed_for_store and not _is_auto_confirmed_store_match(si):
+                        response = _store_confirm_response(
+                            store_name_for_match,
+                            si,
+                            store_key=store_key,
+                            order_data_cache=_order_cache_with_confirmations(order_data, confirmed_stores),
+                            confirmed_stores=confirmed_stores,
+                        )
                         if _HAS_EVENT_BUS:
                             EventBus.emit("store_confirm_needed", {
                                 "session_id": order_session_id,
@@ -1934,6 +1955,10 @@ class OrderToHuadingTemplate:
                                 "need_customer_hint": False,
                             })
                         return response
+                    if not confirmed_for_store and _is_auto_confirmed_store_match(si):
+                        si.setdefault("_store_key", store_key)
+                        si.setdefault("store_name_submitted", store_name_for_match)
+                        confirmed_stores[store_key] = si
 
                     owner_code = si.get("owner_code", self.shipper_id)
                     sku_results, unmatched_items = object.__getattribute__(self, '_match_sku')(store_items, owner_code)
@@ -1965,9 +1990,17 @@ class OrderToHuadingTemplate:
                     address_val = order_data.get("address")
                     contact_val = order_data.get("contact_person")
                     shipper_name_val = order_data.get("customer_company", "")
+                    store_key = store_name_val
 
-                if confirmed_store:
-                    store_info = confirmed_store
+                confirmed_for_store = _confirmed_store_for(
+                    confirmed_stores, store_key, store_name_val
+                )
+
+                if confirmed_for_store:
+                    store_info = confirmed_for_store
+                    store_info.setdefault("_store_key", store_key)
+                    store_info.setdefault("store_name_submitted", store_name_val)
+                    confirmed_stores[store_key] = store_info
                     # v5.9.0 Phase 1：emit 门店已确认事件（单门店版）
                     if _HAS_EVENT_BUS:
                         EventBus.emit("store_confirmed", {
@@ -2007,7 +2040,13 @@ class OrderToHuadingTemplate:
                         }
                     if not _is_auto_confirmed_store_match(store_info):
                         submitted = store_info.get("store_name_submitted", store_name_val or order_data.get("store_name", ""))
-                        response = _store_confirm_response(submitted, store_info)
+                        response = _store_confirm_response(
+                            submitted,
+                            store_info,
+                            store_key=store_key,
+                            order_data_cache=_order_cache_with_confirmations(order_data, confirmed_stores),
+                            confirmed_stores=confirmed_stores,
+                        )
                         if _HAS_EVENT_BUS:
                             EventBus.emit("store_confirm_needed", {
                                 "session_id": order_session_id,
@@ -2021,6 +2060,9 @@ class OrderToHuadingTemplate:
                                 "need_customer_hint": False,
                             })
                         return response
+                    store_info.setdefault("_store_key", store_key)
+                    store_info.setdefault("store_name_submitted", store_name_val)
+                    confirmed_stores[store_key] = store_info
 
                 owner_code = store_info.get("owner_code", self.shipper_id) if store_info else self.shipper_id
                 sku_results, unmatched_items = object.__getattribute__(self, '_match_sku')(order_data["items"], owner_code)
@@ -2043,19 +2085,6 @@ class OrderToHuadingTemplate:
                     order_no_safe = f"DH-O-{now_str}"
                 output_file = os.path.join(self.output_dir, f"华鼎出库单_{order_no_safe}.xlsx")
 
-            # ========== 生成合并模板（所有门店写入同一个sheet）==========
-            object.__getattribute__(self, '_generate_multi_store_template')(order_data, all_store_results, output_file)
-
-            # ========== 同步到 media/outbound（供下载链接访问）==========
-            try:
-                import shutil
-                outbound_dir = os.path.expanduser("~/.openclaw/media/outbound")
-                os.makedirs(outbound_dir, exist_ok=True)
-                outbound_file = os.path.join(outbound_dir, os.path.basename(output_file))
-                shutil.copy2(output_file, outbound_file)
-            except Exception as copy_err:
-                print(f"[WARN] 复制到 media/outbound 失败: {copy_err}")
-
             # ========== 统计汇总 ==========
             total_items = sum(len(r["sku_results"]) for r in all_store_results)
             total_unmatched = sum(len(r["unmatched_items"]) for r in all_store_results)
@@ -2073,6 +2102,37 @@ class OrderToHuadingTemplate:
 
             has_issues = total_unmatched > 0 or review_data["summary"]["alert_count"] > 0
             store_names = ", ".join(r["store_name"] for r in all_store_results)
+
+            if not confirmed_sku:
+                return {
+                    "success": False,
+                    "need_sku_confirm": True,
+                    "store_names": store_names,
+                    "store_count": len(all_store_results),
+                    "item_count": total_items,
+                    "matched_count": total_items - total_unmatched,
+                    "unmatched_count": total_unmatched,
+                    "unmatched_items": all_unmatched,
+                    "review_data": review_data,
+                    "all_store_results": all_store_results,
+                    "order_data_cache": _order_cache_with_confirmations(order_data, confirmed_stores),
+                    "confirmed_stores": confirmed_stores,
+                    "proposed_output_file": output_file,
+                    "message": "SKU映射结果需要确认，请检查映射对照表后继续生成模板",
+                }
+
+            # ========== 生成合并模板（所有门店写入同一个sheet）==========
+            object.__getattribute__(self, '_generate_multi_store_template')(order_data, all_store_results, output_file)
+
+            # ========== 同步到 media/outbound（供下载链接访问）==========
+            try:
+                import shutil
+                outbound_dir = os.path.expanduser("~/.openclaw/media/outbound")
+                os.makedirs(outbound_dir, exist_ok=True)
+                outbound_file = os.path.join(outbound_dir, os.path.basename(output_file))
+                shutil.copy2(output_file, outbound_file)
+            except Exception as copy_err:
+                print(f"[WARN] 复制到 media/outbound 失败: {copy_err}")
 
             # ========== 格式化用户友好的返回消息 ==========
             friendly_msg = object.__getattribute__(self, '_format_success_message')(
@@ -2805,7 +2865,7 @@ class OrderToHuadingTemplate:
         Returns:
             (results, unmatched_items)
         """
-        from skills.skill_order_to_huading_template.tools._sku_mapper import map_sku_batch
+        map_sku_batch = _import_skill_attr("tools._sku_mapper", "map_sku_batch")
 
         # 批量处理，一次 DB 查询获取所有 SKU，后续全内存匹配
         results, unmatched_items = map_sku_batch(
