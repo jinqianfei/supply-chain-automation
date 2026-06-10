@@ -603,7 +603,7 @@ def map_sku_batch(owner_code: str, items: List[Dict],
     cache = SKUCache(owner_code, db_config).load()
     all_skus = cache.rows()
 
-    # 加载别名表（一次 DB 查询）
+    # 加载别名表（一次 DB 查询）— v5.12.0 改为支持同名多SKU
     conn = psycopg2.connect(**db_config)
     cur = conn.cursor()
     cur.execute(f"""
@@ -613,7 +613,9 @@ def map_sku_batch(owner_code: str, items: List[Dict],
         JOIN {SKU_TABLE} p ON p.sku_name = a.system_product_name AND p.shipper_id = a.shipper_id
         WHERE a.shipper_id = %s
     """, (owner_code,))
-    alias_rows = {r[0]: r[1:] for r in cur.fetchall()}  # order_product_name -> (sku_code, sku_name, ...)
+    alias_groups = {}  # order_product_name -> list of (sku_code, sku_name, ...)
+    for r in cur.fetchall():
+        alias_groups.setdefault(r[0], []).append(r[1:])
     conn.close()
 
     results = []
@@ -628,7 +630,7 @@ def map_sku_batch(owner_code: str, items: List[Dict],
 
         result = _map_single_in_batch(
             owner_code, clean_name_text(product_name),
-            spec, unit, seq, db_config, cache, alias_rows, all_skus,
+            spec, unit, quantity, db_config, cache, alias_groups, all_skus,
             clean_name_text, _extract_spec_from_name, _clean_product_name,
             _spec_match_score, _keyword_boost, _has_core_word_match
         )
