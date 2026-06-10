@@ -2911,7 +2911,7 @@ class OrderToHuadingTemplate:
 
     def _get_sku_unit_info(self, sku_code: str, owner_code: str) -> Dict[str, str]:
         """
-        获取SKU的单位信息
+        获取SKU的单位信息（v5.11.2 改为查 product_sku 表，不再查已删除的 shipper_sku_mapping）
         
         Returns:
             dict: {
@@ -2920,92 +2920,54 @@ class OrderToHuadingTemplate:
             }
         """
         try:
-            import psycopg2
-            import json
-            
-            conn = psycopg2.connect(**self.db_config)
+            from db.table_names import SKU_TABLE
+            conn = self._get_db_connection()
             cur = conn.cursor()
             
-            # Step 1: 用 sku_code 找到该SKU对应的商品名称
-            cur.execute("""
-                SELECT m.system_sku_name
-                FROM shipper_sku_mapping m
-                WHERE m.shipper_id = %s AND m.system_sku_code = %s AND m.status = 'ACTIVE'
+            # Step 1: 用 sku_code 找到当前 SKU 的名称、单位、换算比
+            cur.execute(f"""
+                SELECT sku_name, unit, unit_type, conversion_ratio
+                FROM {SKU_TABLE}
+                WHERE sku_code = %s AND shipper_id = %s
                 LIMIT 1
-            """, (owner_code, sku_code))
-            row = cur.fetchone()
-            if not row:
+            """, (sku_code, owner_code))
+            current_row = cur.fetchone()
+            if not current_row:
                 conn.close()
                 return {"unit": "件", "unit_type": "大单位"}
             
-            product_name = row[0]
+            current_name, current_unit, current_unit_type, current_ratio = current_row
             
-            # Step 2: 找到该商品名称对应的所有系统SKU及其单位配置
-            cur.execute("""
-                SELECT m.system_sku_code, m.unit_conversion_rule
-                FROM shipper_sku_mapping m
-                WHERE m.shipper_id = %s 
-                  AND m.system_sku_name = %s 
-                  AND m.status = 'ACTIVE'
-            """, (owner_code, product_name))
+            # 如果数据库已有 unit_type 值，优先使用
+            if current_unit_type:
+                conn.close()
+                return {"unit": current_unit or "件", "unit_type": current_unit_type}
+            
+            # Step 2: 找同名 SKU（同一 shipper_id 下 sku_name 相同），按 conversion_ratio 判断单位类型
+            cur.execute(f"""
+                SELECT sku_code, conversion_ratio, unit
+                FROM {SKU_TABLE}
+                WHERE sku_name = %s AND shipper_id = %s
+            """, (current_name, owner_code))
             all_rows = cur.fetchall()
             conn.close()
             
-            if not all_rows:
-                return {"unit": "件", "unit_type": "大单位"}
+            if len(all_rows) <= 1:
+                return {"unit": current_unit or "件", "unit_type": "大单位"}
             
-            # 提取所有SKU的单位配置: {sku_code: (ratio, unit), ...}
-            sku_units = {}
-            for r in all_rows:
-                s_code = r[0]
-                rule = r[1]
-                if not rule:
-                    continue
-                
-                if isinstance(rule, str):
-                    rule = json.loads(rule)
-                
-                if isinstance(rule, dict):
-                    ratio = rule.get('ratio')
-                    unit = rule.get('unit')
-                    if ratio and unit:
-                        sku_units[s_code] = (float(ratio), unit)
+            # 按 conversion_ratio 排序判断单位类型
+            ratios = sorted(set(r[1] or 1.0 for r in all_rows))
             
-            if not sku_units:
-                return {"unit": "件", "unit_type": "大单位"}
+            if len(ratios) == 1:
+                return {"unit": current_unit or "件", "unit_type": "大单位"}
             
-            # 获取当前sku的单位信息
-            current_unit_info = sku_units.get(sku_code)
-            if not current_unit_info:
-                return {"unit": "件", "unit_type": "大单位"}
-            
-            current_ratio, current_unit = current_unit_info
-            
-            # 只有一个SKU配置时，默认返回"大单位"
-            if len(sku_units) == 1:
-                return {"unit": current_unit, "unit_type": "大单位"}
-            
-            # 多个SKU时，按ratio排序判断单位类型
-            sorted_skus = sorted(sku_units.items(), key=lambda x: x[1][0])
-            
-            if len(sorted_skus) == 2:
-                if current_ratio == sorted_skus[1][1][0]:  # ratio最大
-                    return {"unit": current_unit, "unit_type": "大单位"}
-                else:
-                    return {"unit": current_unit, "unit_type": "小单位"}
-            
-            elif len(sorted_skus) >= 3:
-                min_ratio = sorted_skus[0][1][0]
-                max_ratio = sorted_skus[-1][1][0]
-                
-                if current_ratio == max_ratio:
-                    return {"unit": current_unit, "unit_type": "大单位"}
-                elif current_ratio == min_ratio:
-                    return {"unit": current_unit, "unit_type": "小单位"}
-                else:
-                    return {"unit": current_unit, "unit_type": "中单位"}
-            
-            return {"unit": current_unit, "unit_type": "大单位"}
+            effective_ratio = current_ratio or 1.0
+            if effective_ratio == max(ratios):
+                return {"unit": current_unit or "件", "unit_type": "大单位"}
+            elif effective_ratio == min(ratios):
+                return {"unit": current_unit or "件", "unit_type": "小单位"}
+            else:
+                return {"unit": current_unit or "件", "unit_type": "中单位"}
                 
         except Exception as e:
             print(f"获取单位信息失败: {e}")
