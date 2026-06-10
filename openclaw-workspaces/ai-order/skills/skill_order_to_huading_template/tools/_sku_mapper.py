@@ -322,7 +322,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
     """, (owner_code, product_name))
     alias_rows = cur.fetchall()
     if alias_rows:
-        r, need_unit_confirm, _ = _resolve_unit_type(alias_rows, order_quantity)
+        r, need_unit_confirm, _ = _resolve_unit_type(alias_rows, order_quantity, unit)
         conn.close()
         result = _build_result(r, confidence=0.98, original_product_name=product_name)
         result["match_method"] = "Layer 0 别名表精确匹配"
@@ -340,7 +340,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
     """, (owner_code, product_name, product_name))
     rows = cur.fetchall()
     if rows:
-        r, need_unit_confirm, _ = _resolve_unit_type(rows, order_quantity)
+        r, need_unit_confirm, _ = _resolve_unit_type(rows, order_quantity, unit)
         conn.close()
         result = _build_result(r, confidence=0.95, original_product_name=product_name)
         result["match_method"] = "Layer 1 精确匹配"
@@ -368,8 +368,8 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
                         spec_candidates.append(row)
                 if spec_candidates:
                     rows = spec_candidates  # 规格匹配的子集
-            # 用 _resolve_unit_type 按订单数量选择出库单位
-            r, need_unit_confirm, _ = _resolve_unit_type(rows, order_quantity)
+            # 用 _resolve_unit_type 按订单单位+数量选择出库单位
+            r, need_unit_confirm, _ = _resolve_unit_type(rows, order_quantity, unit)
             conn.close()
             result = _build_result(r, confidence=0.93, original_product_name=product_name)
             result["match_method"] = "Layer 1b 精确匹配（去除规格后）"
@@ -670,7 +670,7 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
     # Layer 0: 别名表 — 使用 _resolve_unit_type 选择出库单位（v5.12.0）
     if product_name in alias_groups:
         candidate_rows = alias_groups[product_name]
-        r, need_unit_confirm, _ = _resolve_unit_type(candidate_rows, quantity)
+        r, need_unit_confirm, _ = _resolve_unit_type(candidate_rows, quantity, unit)
         result = _build_result(r, confidence=0.98, original_product_name=product_name)
         result["match_method"] = "Layer 0 别名表精确匹配"
         if need_unit_confirm:
@@ -681,7 +681,7 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
     # Layer 1: 精确匹配 — 收集同名SKU，用 _resolve_unit_type 选择（v5.12.0）
     exact_matches = [r for r in all_skus if r[1] == product_name or r[6] == product_name]
     if exact_matches:
-        r, need_unit_confirm, _ = _resolve_unit_type(exact_matches, quantity)
+        r, need_unit_confirm, _ = _resolve_unit_type(exact_matches, quantity, unit)
         result = _build_result(r, confidence=0.95, original_product_name=product_name)
         result["match_method"] = "Layer 1 精确匹配"
         if need_unit_confirm:
@@ -698,7 +698,7 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
                 spec_candidates = [r for r in clean_matches if _spec_match_score(order_spec, r[5] or "") >= 0.5]
                 if spec_candidates:
                     clean_matches = spec_candidates
-            r, need_unit_confirm, _ = _resolve_unit_type(clean_matches, quantity)
+            r, need_unit_confirm, _ = _resolve_unit_type(clean_matches, quantity, unit)
             result = _build_result(r, confidence=0.93, original_product_name=product_name)
             result["match_method"] = "Layer 1b 精确匹配（去除规格后）"
             if need_unit_confirm:
