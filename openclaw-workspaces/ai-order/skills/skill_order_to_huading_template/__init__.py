@@ -143,6 +143,49 @@ def _call_match_store(store_name: str, customer_company: str = None,
         contact_person=contact_person,
     )
 
+
+def _is_auto_confirmed_store_match(store_info: Optional[dict]) -> bool:
+    """
+    只有「门店名精确匹配且唯一」可以跳过人工确认。
+
+    手机号、地址、联系人、包含/模糊匹配都需要用户确认。
+    """
+    if not store_info:
+        return False
+    if store_info.get("need_confirm") or store_info.get("candidates"):
+        return False
+    return store_info.get("match_type") == "exact"
+
+
+def _store_confirm_response(store_name_submitted: str, store_info: dict) -> Dict[str, Any]:
+    """构建统一的门店确认响应。"""
+    candidates = store_info.get("candidates") or []
+    top_c = candidates[0] if candidates else store_info
+    top_sim = top_c.get("similarity", store_info.get("similarity", 1.0))
+    matched_store = {
+        "store_code": store_info.get("store_code", top_c.get("store_code", "")),
+        "store_name": store_info.get("store_name", top_c.get("store_name", "")),
+        "owner_code": store_info.get("owner_code", top_c.get("owner_code", "")),
+        "owner_name": store_info.get("owner_name", top_c.get("owner_name", "")),
+        "warehouse_name": store_info.get("warehouse_name", top_c.get("warehouse_name", "")),
+        "warehouse_code": store_info.get("warehouse_code", top_c.get("warehouse_code", "")),
+        "address": store_info.get("address", top_c.get("address", "")),
+        "contact_person": store_info.get("contact_person", top_c.get("contact_person", "")),
+        "phone": store_info.get("phone", top_c.get("phone", "")),
+        "similarity": top_sim,
+        "match_type": store_info.get("match_type", top_c.get("match_type", "")),
+        "match_method": store_info.get("match_method", top_c.get("match_method", "")),
+    }
+    return {
+        "success": False,
+        "need_store_confirm": True,
+        "store_name_submitted": store_name_submitted,
+        "candidates": candidates or [matched_store],
+        "matched_store": matched_store,
+        "message": f"门店「{store_name_submitted}」→ {matched_store.get('store_name', '')}，请确认"
+    }
+
+
 def _is_sku_code(s: str) -> bool:
     """判断字符串是否像商品编码（如 A001, SK241228000106）"""
     return bool(re.match(r'^[A-Z][A-Z0-9]{2,}$', s))
