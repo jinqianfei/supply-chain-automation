@@ -30,6 +30,22 @@ except ImportError:
     EventBus = None
     init_feedback_collector = None
     get_feedback_collector = None
+
+_PROXY_ENV_KEYS = (
+    "SOCKS_PROXY", "socks_proxy",
+    "ALL_PROXY", "all_proxy",
+    "HTTPS_PROXY", "https_proxy",
+    "HTTP_PROXY", "http_proxy",
+    "NO_PROXY", "no_proxy",
+)
+
+
+def _clear_proxy_env():
+    """Remove proxy env vars that can break LLM/RDS network clients."""
+    for key in _PROXY_ENV_KEYS:
+        os.environ.pop(key, None)
+
+
 class OrderSkillError(Exception):
     """订单映射Skill专用异常"""
     def __init__(self, code: str, message: str, detail: str = ""):
@@ -479,14 +495,10 @@ class OrderToHuadingTemplate:
                 detail=guide
             )
 
-        # 移除 SOCKS 代理，避免 LLM 调用时出错（socksio 未安装）
-        for k in ["SOCKS_PROXY", "ALL_PROXY", "HTTPS_PROXY", "HTTP_PROXY"]:
-            os.environ.pop(k, None)
-        os.environ.pop("no_proxy", None)
-        os.environ.pop("NO_PROXY", None)
-
         # 从 .env 文件加载环境变量（统一函数）
         _load_dotenv_to_environ()
+        # 移除代理，避免 LLM/RDS 客户端继承小写 all_proxy 等变量
+        _clear_proxy_env()
 
         self.shipper_id = None  # 不再直接传入，通过门店匹配获取
         self.db_config = db_config
