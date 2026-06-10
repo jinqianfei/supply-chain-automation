@@ -5,6 +5,41 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.12.0] - 2026-06-10
+
+### Fixed
+- **P1 bug：多门店 + 单 confirmed_store 不应作用于所有门店**
+  - 根因：多门店循环 `for store_key, store_data in stores_dict.items()` 里 `if confirmed_store: si = confirmed_store` 用同一个确认处理所有门店
+  - 表现：多门店订单只传 1 个 confirmed_store 时，Excel 所有行 store_code 用第 1 门店
+  - 修复：引入 `confirmed_stores: Dict[str, Dict[str, Any]]`，按 store_key 独立查找确认
+  - 验证：`scripts/test_execute_confirmation_flow.py::test_single_confirmed_store_does_not_apply_to_all_multi_store_entries` ✅
+
+### Added
+- `_merge_confirmed_store(confirmed_stores, confirmed_store)`: 兼容单/批两种 confirmed_store 传参（向后兼容）
+- `_confirmed_store_for(confirmed_stores, store_key, store_name)`: 按 store_key 查找确认（fallback 到 store_name + _store_key）
+- `_order_cache_with_confirmations(order_data, confirmed_stores)`: 缓存订单数据 + 已确认门店（用于多轮确认）
+- `_import_skill_attr(module_path, attr_name)`: 模块属性加载（fallback 支持，兼容无 `skills` 顶层包）
+- `_clear_proxy_env()`: 集中清理代理环境变量
+- `scripts/test_execute_confirmation_flow.py`: 2 项 execute() 确认检查点回归测试（151 行）
+- `scripts/test_execute_import_fallback.py`: import fallback 回归测试
+
+### Changed
+- `execute()` 签名：`confirmed_store: Dict = None`（保留向后兼容）
+  - 内部：`confirmed_stores = _merge_confirmed_store({}, confirmed_store)` 转为 dict
+  - 多门店循环：每个门店独立 `_confirmed_store_for(confirmed_stores, store_key, store_name)`
+  - 未确认门店：返回 `need_store_confirm=True` + `order_data_cache._confirmed_stores` 携带已确认门店
+- `_store_confirm_response()` 重构：支持 `store_key` + `order_data_cache` + `confirmed_stores` 参数
+- README.md / SKILL.md 同步 v5.12.0 API 变更
+
+### Verified
+- `python3 scripts/test_execute_confirmation_flow.py` ✅ PASSED（含 P1 bug 回归测试）
+- `python3 scripts/test_execute_import_fallback.py` ✅ PASSED
+- `python3 scripts/test_event_pipeline.py` ✅ 4/4 全过（回归无破坏）
+
+### Notes
+- 本版本作者：金姐 / 自动 commit hook（修改时间 2026-06-10 10:57:33，AI 提交时未注意到，作者待确认）
+- B（推 tag）暂未执行：skill 的 git repo 没有任何 remote（已在汇报 #1 标记）
+
 ## [5.11.2] - 2026-06-09
 
 ### Added
