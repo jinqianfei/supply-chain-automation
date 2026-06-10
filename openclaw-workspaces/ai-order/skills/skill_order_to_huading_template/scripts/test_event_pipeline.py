@@ -20,15 +20,11 @@ sys.path.insert(0, SKILL_DIR)
 # 关键：让 events/ learn/ 能被绝对 import
 from events.bus import EventBus
 from learn.collector import FeedbackCollector, init_feedback_collector, get_feedback_collector
+from db.connection import get_default_db_config
 
 
-DB_CONFIG = {
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": 5432,
-    "database": "neo",
-    "user": "your_username",
-    "password": os.getenv("DB_PASSWORD", ""),
-}
+RUN_DB_INTEGRATION_TESTS = os.getenv("RUN_DB_INTEGRATION_TESTS") == "1"
+DB_CONFIG = get_default_db_config()
 
 
 def test_event_bus_basic():
@@ -94,6 +90,11 @@ def test_feedback_collector_init():
 
 def test_order_complete_event_writes_db():
     """测试3：order_complete 事件 → order_feedback 写入"""
+    if not RUN_DB_INTEGRATION_TESTS:
+        print("=== Test 3: order_complete → DB 写入 ===")
+        print("  SKIPPED: set RUN_DB_INTEGRATION_TESTS=1 to allow DB writes\n")
+        return
+
     print("=== Test 3: order_complete → DB 写入 ===")
     # 注意：不调用 EventBus.clear()，因为 collector 是单例，clear 会导致 handler 全部丢失
     collector = init_feedback_collector(DB_CONFIG)
@@ -134,7 +135,7 @@ def test_order_complete_event_writes_db():
         "user_modified": False,
         "user_confirmed": True,
         "processing_time_ms": 1234,
-        "skill_version": "5.9.0",
+        "skill_version": "5.11.2",
         "owner_code": "HZ001",
         "source_file": tempfile.gettempdir() + "/test_order.txt",
         "output_file": tempfile.gettempdir() + "/test_output.xlsx",
@@ -171,7 +172,7 @@ def test_order_complete_event_writes_db():
     assert sm_rate == 0.95
     assert u_conf is True
     assert ptime == 1234
-    assert sk_ver == "5.9.0"
+    assert sk_ver == "5.11.2"
     print(f"  ✅ order_feedback 写入成功 (id={fb_id}, session={s_id[:25]}...)")
     print(f"     order_type={o_type}, sku_count={sku_cnt}, store_match_rate={sm_rate}")
 
