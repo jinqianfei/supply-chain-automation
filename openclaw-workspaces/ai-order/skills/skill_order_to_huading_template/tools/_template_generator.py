@@ -132,7 +132,7 @@ def generate(store_info: dict, sku_mappings: list, order_data: dict,
         ws.cell(row=row_num, column=5, value=defaults.get("加急程度", 0))
         ws.cell(row=row_num, column=6, value=sku.get("sku_code", ""))
         ws.cell(row=row_num, column=7, value=defaults.get("商品三方SPEC编号", ""))
-        ws.cell(row=row_num, column=8, value=sku.get("unit_type", "大单位"))
+        ws.cell(row=row_num, column=8, value=sku.get("unit_type", ""))  # v5.12.0 不再默认大单位
         ws.cell(row=row_num, column=9, value=sku.get("quantity", 1))
         ws.cell(row=row_num, column=10, value=defaults.get("指定库存状态", "正常"))
         ws.cell(row=row_num, column=11, value=defaults.get("出库类型", "201"))
@@ -203,8 +203,8 @@ def generate_from_template(template_path: str, store_info: dict,
     for idx, sku in enumerate(sku_mappings):
         row_num = idx + 2
         
-        # 单位类型（H）
-        ws.cell(row=row_num, column=8, value=sku.get("unit_type", "大单位"))
+        # 单位类型（H）— v5.12.0 不再默认大单位
+        ws.cell(row=row_num, column=8, value=sku.get("unit_type", ""))
         # 是否垫付（N）
         ws.cell(row=row_num, column=14, value=defaults.get("是否垫付", "否"))
         # 收货人（Z）
