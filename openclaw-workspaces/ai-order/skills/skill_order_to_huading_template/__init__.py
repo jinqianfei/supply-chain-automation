@@ -13,6 +13,8 @@ import re
 import datetime
 import time
 import uuid
+import copy
+import importlib
 from typing import Dict, Any, Optional, Union, List, Tuple
 
 # ── 统一 .env 加载器（避免 4 处重复路径硬编码）────────
@@ -44,6 +46,18 @@ def _clear_proxy_env():
     """Remove proxy env vars that can break LLM/RDS network clients."""
     for key in _PROXY_ENV_KEYS:
         os.environ.pop(key, None)
+
+
+def _import_skill_attr(module_path: str, attr_name: str):
+    """Import from installed skill package, with direct-directory fallback."""
+    absolute_name = f"skills.skill_order_to_huading_template.{module_path}"
+    try:
+        module = importlib.import_module(absolute_name)
+    except ModuleNotFoundError as exc:
+        if exc.name != "skills":
+            raise
+        module = importlib.import_module(module_path)
+    return getattr(module, attr_name)
 
 
 class OrderSkillError(Exception):
@@ -149,7 +163,7 @@ def _call_match_store(store_name: str, customer_company: str = None,
                       phone: str = None, address: str = None,
                       contact_person: str = None) -> Optional[dict]:
     """动态导入并调用 tools.store_matcher.match_store"""
-    from skills.skill_order_to_huading_template.tools._store_matcher import match_store
+    match_store = _import_skill_attr("tools._store_matcher", "match_store")
     return match_store(
         store_name=store_name,
         customer_company=customer_company,
@@ -173,7 +187,68 @@ def _is_auto_confirmed_store_match(store_info: Optional[dict]) -> bool:
     return store_info.get("match_type") == "exact"
 
 
-def _store_confirm_response(store_name_submitted: str, store_info: dict) -> Dict[str, Any]:
+def _order_cache_with_confirmations(order_data: Dict[str, Any],
+                                    confirmed_stores: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    """Return a portable order cache carrying prior store confirmations."""
+    try:
+        cached = copy.deepcopy(order_data)
+    except Exception:
+        cached = dict(order_data or {})
+    cached["_confirmed_stores"] = copy.deepcopy(confirmed_stores or {})
+    return cached
+
+
+def _merge_confirmed_store(confirmed_stores: Dict[str, Dict[str, Any]],
+                           confirmed_store: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Merge a single or batched store confirmation into the confirmation map."""
+    merged = dict(confirmed_stores or {})
+    if not confirmed_store or not isinstance(confirmed_store, dict):
+        return merged
+
+    batched = confirmed_store.get("confirmed_stores")
+    if isinstance(batched, dict):
+        for key, store in batched.items():
+            if isinstance(store, dict):
+                merged[str(key)] = dict(store)
+
+    if confirmed_store.get("store_code") or confirmed_store.get("store_name"):
+        key = (
+            confirmed_store.get("_store_key")
+            or confirmed_store.get("store_key")
+            or confirmed_store.get("store_name_submitted")
+            or confirmed_store.get("store_name")
+        )
+        if key:
+            store_copy = dict(confirmed_store)
+            store_copy.pop("confirmed_stores", None)
+            merged[str(key)] = store_copy
+
+    return merged
+
+
+def _confirmed_store_for(confirmed_stores: Dict[str, Dict[str, Any]],
+                         store_key: str, store_name: str) -> Optional[Dict[str, Any]]:
+    """Find a prior confirmation by stable store key or submitted/display name."""
+    if not confirmed_stores:
+        return None
+    candidates = [store_key, store_name]
+    for key in candidates:
+        if key and key in confirmed_stores:
+            return confirmed_stores[key]
+    for store in confirmed_stores.values():
+        if not isinstance(store, dict):
+            continue
+        if store.get("_store_key") == store_key:
+            return store
+        if store.get("store_name_submitted") in candidates:
+            return store
+    return None
+
+
+def _store_confirm_response(store_name_submitted: str, store_info: dict,
+                            store_key: str = None,
+                            order_data_cache: Dict[str, Any] = None,
+                            confirmed_stores: Dict[str, Dict[str, Any]] = None) -> Dict[str, Any]:
     """构建统一的门店确认响应。"""
     candidates = store_info.get("candidates") or []
     top_c = candidates[0] if candidates else store_info
@@ -191,13 +266,23 @@ def _store_confirm_response(store_name_submitted: str, store_info: dict) -> Dict
         "similarity": top_sim,
         "match_type": store_info.get("match_type", top_c.get("match_type", "")),
         "match_method": store_info.get("match_method", top_c.get("match_method", "")),
+        "store_name_submitted": store_name_submitted,
     }
+    if store_key:
+        matched_store["_store_key"] = store_key
+        for c in candidates:
+            if isinstance(c, dict):
+                c.setdefault("_store_key", store_key)
+                c.setdefault("store_name_submitted", store_name_submitted)
     return {
         "success": False,
         "need_store_confirm": True,
+        "pending_store_key": store_key or store_name_submitted,
         "store_name_submitted": store_name_submitted,
         "candidates": candidates or [matched_store],
         "matched_store": matched_store,
+        "confirmed_stores": confirmed_stores or {},
+        "order_data_cache": order_data_cache,
         "message": f"门店「{store_name_submitted}」→ {matched_store.get('store_name', '')}，请确认"
     }
 
