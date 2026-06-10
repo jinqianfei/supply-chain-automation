@@ -625,7 +625,7 @@ def map_sku_batch(owner_code: str, items: List[Dict],
                 # 用选中的 SKU 覆盖结果中的 SKU 信息
                 result["sku_code"] = selected_row[0]
                 result["sku_name"] = selected_row[1]
-                result["unit"] = selected_row[2]
+                result["unit"] = selected_row[2]  # 华鼎单位（如 件/箱/包/袋）
                 result["unit_type"] = selected_row[3]
                 result["conversion_ratio"] = float(selected_row[4]) if selected_row[4] else 1.0
                 result["product_spec"] = selected_row[5] or ""
@@ -633,9 +633,9 @@ def map_sku_batch(owner_code: str, items: List[Dict],
                     result["need_confirm"] = True
                     result["unit_confirm_msg"] = "多个同单位候选，请确认出库单位"
             
-            # 【Bugfix 2026-06-09】把订单原 quantity/unit/spec 透传进 result
+            # 透传订单原始信息
             result["quantity"] = quantity
-            result["unit"] = unit  # 订单原始单位
+            result["order_unit"] = unit  # 订单原始单位（与华鼎单位分开存储）
             result["spec"] = spec
             result["seq"] = seq
             results.append(result)
