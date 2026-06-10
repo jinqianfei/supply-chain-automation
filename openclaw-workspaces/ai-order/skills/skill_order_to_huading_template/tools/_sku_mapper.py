@@ -196,17 +196,16 @@ def _has_core_word_match(clean_name: str, sku_name: str) -> bool:
 
 def _resolve_unit_type(rows: list, order_quantity: float = 1, order_unit: str = "") -> tuple:
     """
-    根据订单单位 + 数量 + conversion_ratio 选择最合适的出库单位（v5.12.0）
+    根据订单单位精确匹配选择出库单位（v5.13.0）
     
-    优先级：
-    1. 订单单位精确匹配 — order_unit 与 SKU 的 unit 字段精确匹配
-    2. “件” 特殊规则 — 订单单位=“件”时直接选大单位（“件”=整件出库）
-    3. 数量+ratio 匹配 — order_quantity >= max_ratio → 大单位，否则 → 小单位
-    4. 多个同 ratio 候选 → need_confirm（需用户确认）
+    规则：
+    1. 订单单位与 SKU.unit 精确匹配 → 选中该 SKU
+    2. 匹配不上 → 直接用第一个 SKU（它自带 unit_type）
+    3. 多个同 unit 候选 → need_confirm
     
     Args:
         rows: 同名商品的 SKU 记录列表 (sku_code, sku_name, unit, unit_type, conversion_ratio, ...)
-        order_quantity: 订单数量
+        order_quantity: 订单数量（保留参数兼容，不再使用）
         order_unit: 订单单位（如“件”“包”“袋”“瓶”）
     
     Returns:
@@ -217,7 +216,7 @@ def _resolve_unit_type(rows: list, order_quantity: float = 1, order_unit: str = 
     if len(rows) == 1:
         return (rows[0], False, rows)
     
-    # ========== 优先级 1: 订单单位精确匹配 ==========
+    # 订单单位精确匹配
     if order_unit:
         unit_matches = [r for r in rows if r[2] == order_unit]
         if len(unit_matches) == 1:
@@ -225,44 +224,8 @@ def _resolve_unit_type(rows: list, order_quantity: float = 1, order_unit: str = 
         elif len(unit_matches) > 1:
             return (unit_matches[0], True, rows)
     
-    # ========== 优先级 2: “件”特殊规则 — 件 = 整件出库 = 大单位 ==========
-    if order_unit == "件":
-        ratio_groups = {}
-        for r in rows:
-            ratio = float(r[4]) if r[4] else 1.0
-            ratio_groups.setdefault(ratio, []).append(r)
-        ratios = sorted(ratio_groups.keys())
-        max_ratio = ratios[-1]
-        return (ratio_groups[max_ratio][0], False, rows)
-    
-    # ========== 优先级 3: 数量 + ratio 匹配 ==========
-    ratio_groups = {}
-    for r in rows:
-        ratio = float(r[4]) if r[4] else 1.0
-        ratio_groups.setdefault(ratio, []).append(r)
-    
-    ratios = sorted(ratio_groups.keys())
-    
-    if len(ratios) == 1:
-        return (rows[0], False, rows)
-    
-    max_ratio = ratios[-1]
-    min_ratio = ratios[0]
-    mid_ratios = ratios[1:-1]  # 排除最大最小
-    
-    if order_quantity >= max_ratio:
-        selected = ratio_groups[max_ratio][0]
-        return (selected, False, rows)
-    
-    if mid_ratios:
-        best_mid = min(mid_ratios, key=lambda r: abs(r - order_quantity))
-        candidates = ratio_groups[best_mid]
-        need_confirm = len(candidates) > 1
-        return (candidates[0], need_confirm, rows)
-    
-    # 不够一件 → 小单位
-    selected = ratio_groups[min_ratio][0]
-    return (selected, False, rows)
+    # 匹配不上 → 直接用第一个 SKU（自带 unit_type）
+    return (rows[0], False, rows)
 
 
 def map_sku(owner_code: str, product_name: str, unit: str = "",

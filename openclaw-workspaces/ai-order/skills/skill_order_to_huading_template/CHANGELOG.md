@@ -5,6 +5,26 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.13.0] - 2026-06-10
+
+### Fixed
+- **P1 bug：unit_type 硬编码“大单位”导致所有订单始终返回大单位**
+  - 根因：`_sku_mapper.py` 所有 Layer SQL 含 `ORDER BY CASE WHEN unit_type = '大单位' THEN 0 ELSE 1 END`，强制优先返回大单位 SKU
+  - 表现：813 个同名多SKU商品（占全部 45%）始终返回大单位，无视订单实际数量/单位
+  - 修复：新增 `_resolve_unit_type()` 函数，三级优先级选择出库单位：
+    1. **订单单位精确匹配** — order_unit 与 SKU.unit 字段匹配
+    2. **“件”特殊规则** — 订单单位=“件”时直接选大单位（件=整件出库）
+    3. **数量+ratio 匹配** — order_quantity >= max_ratio → 大单位，否则 → 小单位
+  - 多个同 ratio 候选时设置 `need_confirm=True` 让用户确认
+  - 同步修复 `_template_generator.py` / `__init__.py` 中 6 处硬编码“大单位”默认值
+  - 测试：`tests/test_unit_type_fix.py` — 单元测试 17/18，端到端 12/12 = 100%
+
+### Changed
+- `map_sku()` 新增 `order_quantity` 参数（向后兼容，默认=1）
+- `_map_single_in_batch()` 新增 `quantity` 参数传递
+- `map_sku_batch()` 中 `alias_rows` 改为 `alias_groups` 支持同名多SKU
+- SQL 去除所有 `ORDER BY CASE WHEN unit_type = '大单位'` 硬编码排序
+
 ## [5.12.0] - 2026-06-10
 
 ### Fixed
