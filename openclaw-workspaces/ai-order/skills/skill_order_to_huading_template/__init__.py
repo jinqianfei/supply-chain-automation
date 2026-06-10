@@ -3686,7 +3686,7 @@ class OrderToHuadingTemplate:
                     "加急程度\n（0：普通，1：加急）": self.DEFAULT_VALUES["加急程度"],
                     "商品SKU编号": sku.get("sku_code", ""),
                     "商品三方SPEC编号": "",
-                    "单位类型": sku.get("unit_type", "大单位"),
+                    "单位类型": sku.get("unit_type", ""),  # v5.12.0 不再默认大单位
                     "出库数量": sku.get("quantity", 1),
                     "指定库存状态": self.DEFAULT_VALUES["指定库存状态"],
                     "出库类型": self.DEFAULT_VALUES["出库类型"],
@@ -3766,7 +3766,7 @@ class OrderToHuadingTemplate:
                     "匹配SKU编码": sku.get("sku_code", ""),
                     "SKU名称": sku.get("sku_name", ""),
                     "数量": sku.get("quantity", 0),
-                    "单位类型": sku.get("unit_type", "大单位"),
+                    "单位类型": sku.get("unit_type", ""),  # v5.12.0 不再默认大单位
                     "匹配单位": sku.get("unit", "件"),
                     # 辅助字段（用于调试）
                     "store": store_name,
