@@ -3300,6 +3300,18 @@ class OrderToHuadingTemplate:
             
             line = f"| {seq} | {row['customer_product_name']} | {row['customer_spec']} | {row['customer_unit']} | {row['customer_quantity']} | → | {sku_code} | {sku_name} | {huading_quantity} | {huading_unit} | {unit_type} | {status_icon}|"
             lines.append(line)
+            
+            # v5.13.2: 多候选 SKU 展示
+            if row.get("need_confirm") and row.get("candidates"):
+                lines.append(f"  ↳ ⚠️ 第{seq}行有多个同名SKU，请选择：")
+                for ci, c in enumerate(row["candidates"], 1):
+                    c_sku = c.get("sku_code", "")
+                    c_name = c.get("sku_name", "")
+                    c_unit = c.get("unit", "")
+                    c_type = c.get("unit_type", "")
+                    c_spec = c.get("product_spec", "")
+                    selected = " ← 当前选中" if c_sku == sku_code else ""
+                    lines.append(f"    {ci}. {c_sku} | {c_name} | {c_unit} | {c_type} | 规格:{c_spec}{selected}")
         
         lines.append("")
         lines.append("请输入指令：")
