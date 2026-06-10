@@ -10,7 +10,7 @@ SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if SKILL_DIR not in sys.path:
     sys.path.insert(0, SKILL_DIR)
 
-from __init__ import OrderToHuadingTemplate
+from __init__ import OrderSkillError, OrderToHuadingTemplate
 
 
 def main() -> None:
@@ -22,7 +22,13 @@ def main() -> None:
 联系电话: 18154355555
 1 P9456694174 椰果果粒 3 件
 """
-    result = skill.tools_parse(text, order_type="text")
+    try:
+        skill.tools_parse(text, order_type="text")
+        raise AssertionError("tools_parse should not be directly accessible")
+    except OrderSkillError as exc:
+        assert exc.code == "E001", exc
+
+    result = object.__getattribute__(skill, "tools_parse")(text, order_type="text")
 
     assert result["success"], result
     assert result["_parse_method"] in ("llm", "regex_fallback"), result
