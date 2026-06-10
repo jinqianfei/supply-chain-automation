@@ -1987,7 +1987,7 @@ class OrderToHuadingTemplate:
                 has_issues=has_issues
             )
 
-            return {
+            response = {
                 "success": True,
                 "need_review": True,
                 # 文件信息
@@ -2049,6 +2049,7 @@ class OrderToHuadingTemplate:
                     })
                 except Exception as _e:
                     print(f"[WARN] emit order_complete failed: {_e}", flush=True)
+            return response
 
         except Exception as e:
             return {
