@@ -295,13 +295,10 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
     """, (owner_code, product_name))
     alias_rows = cur.fetchall()
     if alias_rows:
-        r, need_unit_confirm, _ = _resolve_unit_type(alias_rows, order_quantity, unit)
+        r = alias_rows[0]  # 临时取第一个，单位选择后置
         conn.close()
         result = _build_result(r, confidence=0.98, original_product_name=product_name)
         result["match_method"] = "Layer 0 别名表精确匹配"
-        if need_unit_confirm:
-            result["need_confirm"] = True
-            result["unit_confirm_msg"] = "多个中单位候选,请确认出库单位"
         return result
 
     # ========== Layer 1: 精确匹配(原始名称) ==========
@@ -614,10 +611,10 @@ def map_sku_batch(owner_code: str, items: List[Dict],
         )
 
         if result["matched"]:
-            # ========== 后置步骤：单位选择（v5.13.0） ==========
-            # SKU名称匹配和单位选择解耦：
+            # ========== 后置步骤:单位选择(v5.13.0) ==========
+            # SKU名称匹配和单位选择解耦:
             # Step 1: _map_single_in_batch 已匹配到 sku_name
-            # Step 2: 用 sku_name 查找所有同名 SKU，用订单单位精确匹配选择
+            # Step 2: 用 sku_name 查找所有同名 SKU,用订单单位精确匹配选择
             matched_sku_name = result.get("sku_name", "")
             same_name_skus = [r for r in all_skus if r[1] == matched_sku_name]
             if len(same_name_skus) > 1:
@@ -625,17 +622,17 @@ def map_sku_batch(owner_code: str, items: List[Dict],
                 # 用选中的 SKU 覆盖结果中的 SKU 信息
                 result["sku_code"] = selected_row[0]
                 result["sku_name"] = selected_row[1]
-                result["unit"] = selected_row[2]  # 华鼎单位（如 件/箱/包/袋）
+                result["unit"] = selected_row[2]  # 华鼎单位(如 件/箱/包/袋)
                 result["unit_type"] = selected_row[3]
                 result["conversion_ratio"] = float(selected_row[4]) if selected_row[4] else 1.0
                 result["product_spec"] = selected_row[5] or ""
                 if need_unit_confirm:
                     result["need_confirm"] = True
-                    result["unit_confirm_msg"] = "多个同单位候选，请确认出库单位"
-            
+                    result["unit_confirm_msg"] = "多个同单位候选,请确认出库单位"
+
             # 透传订单原始信息
             result["quantity"] = quantity
-            result["order_unit"] = unit  # 订单原始单位（与华鼎单位分开存储）
+            result["order_unit"] = unit  # 订单原始单位(与华鼎单位分开存储)
             result["spec"] = spec
             result["seq"] = seq
             results.append(result)
