@@ -397,7 +397,8 @@ class OrderToHuadingTemplate:
     
     # ========== AI调用约束（方案1：技术层面）==========
     # AI 只能调用这些公开接口，不得直接调用内部工具函数
-    __公开接口__ = ['execute', 'tools_parse', 'tools_transform']
+    __公开接口__ = ['execute']
+    __内部工具__ = ['tools_parse', 'tools_transform']
     # 内部初始化方法（在 __init__ 期间允许调用）
     __内部初始化__ = ['_load_warehouse_mapping', '_load_field_mapping', '_check_db_connection', '_init_db_repos']
     
@@ -505,6 +506,17 @@ class OrderToHuadingTemplate:
         # 允许所有 dunder 方法和属性
         if name.startswith('__'):
             return object.__getattribute__(self, name)
+
+        try:
+            内部工具 = object.__getattribute__(self, '__内部工具__')
+        except AttributeError:
+            内部工具 = []
+        if name in 内部工具:
+            raise OrderSkillError(
+                code="E001",
+                message=f"禁止直接调用内部函数 '{name}'，请通过 execute() 主入口调用",
+                detail=f"'{name}' 是内部函数，AI 不得直接调用。正确方式：skill.execute(order_input=...)"
+            )
         
         # 检查是否是内部工具函数
         if name.startswith('_'):
@@ -1802,7 +1814,7 @@ class OrderToHuadingTemplate:
                 # Step 1/2: 文本也走 tools/order_parser + field_transformer，
                 # 避免 __init__.py 和 tools/_order_parser.py 维护两套解析逻辑。
                 try:
-                    parsed_result = self.tools_parse(order_input, order_type="text")
+                    parsed_result = object.__getattribute__(self, 'tools_parse')(order_input, order_type="text")
                     if parsed_result.get("success"):
                         order_data = parsed_result
                         order_data["_parse_method"] = "tools_parse"
@@ -1818,7 +1830,7 @@ class OrderToHuadingTemplate:
                     }
 
                 try:
-                    order_data = self.tools_transform(order_data)
+                    order_data = object.__getattribute__(self, 'tools_transform')(order_data)
                 except Exception as transform_err:
                     order_data.setdefault("_warnings", []).append(f"规则库转换异常: {str(transform_err)}")
                 extracted_from = "text"
@@ -1832,7 +1844,7 @@ class OrderToHuadingTemplate:
                 
                 # Step 1: tools_parse() - 调用 tools/order_parser.parse()
                 try:
-                    parsed_result = self.tools_parse(order_input, order_type="excel")
+                    parsed_result = object.__getattribute__(self, 'tools_parse')(order_input, order_type="excel")
                     if parsed_result.get("success"):
                         order_data = parsed_result
                         order_data["_parse_method"] = "tools_parse"
@@ -1850,7 +1862,7 @@ class OrderToHuadingTemplate:
 
                 # Step 2: tools_transform() - 调用 field_transformer 规则库标准化
                 try:
-                    order_data = self.tools_transform(order_data)
+                    order_data = object.__getattribute__(self, 'tools_transform')(order_data)
                 except Exception as transform_err:
                     # 规则库转换失败不影响主流程，记录 warning 继续
                     order_data.setdefault("_warnings", []).append(f"规则库转换异常: {str(transform_err)}")
