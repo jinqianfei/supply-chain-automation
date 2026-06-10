@@ -2,7 +2,7 @@
 
 ## 最新Skill版本
 
-**当前活跃版本**: skill_order_to_huading_template **v5.11.2**（2026-06-09 — 配置统一化：yaml读取 + 表名常量）
+**当前活跃版本**: skill_order_to_huading_template **v5.13.2**（2026-06-10 — 多候选SKU展示给用户选择 + 中文括号正则修复）
 
 **路径**: `/Users/jinqianfei/openclaw-workspaces/ai-order/skills/skill_order_to_huading_template/`
 
