@@ -1900,34 +1900,6 @@ class OrderToHuadingTemplate:
                             "store_name_submitted": order_data.get("store_name", ""),
                             "message": f"门店「{order_data.get('store_name', '未知')}」未找到匹配门店"
                         }
-                    # ⚠️ 不再自动确认：所有门店匹配都必须用户确认
-                    if store_info.get("need_confirm"):
-                        # v5.9.0 Phase 1：emit 门店需要确认事件（单门店版）
-                        if _HAS_EVENT_BUS:
-                            top_c = (store_info.get("candidates") or [{}])[0]
-                            top_sim = top_c.get("similarity", 0)
-                            EventBus.emit("store_confirm_needed", {
-                                "session_id": order_session_id,
-                                "timestamp": time.time(),
-                                "store_name_submitted": store_info.get("store_name_submitted", ""),
-                                "matched_store": {
-                                    "store_code": top_c.get("store_code", ""),
-                                    "store_name": top_c.get("store_name", ""),
-                                    "owner_code": top_c.get("owner_code", ""),
-                                },
-                                "candidates": store_info.get("candidates", []),
-                                "top_similarity": top_sim,
-                                "match_type": top_c.get("match_type", "unknown"),
-                                "match_layer": top_c.get("match_type", "unknown"),
-                                "need_customer_hint": False,
-                            })
-                        return {
-                            "success": False,
-                            "need_store_confirm": True,
-                            "store_name_submitted": store_info.get("store_name_submitted", ""),
-                            "candidates": store_info.get("candidates", []),
-                            "message": f"门店「{store_info.get('store_name_submitted', '未知')}」找到 {len(store_info.get('candidates', []))} 个候选门店，请确认"
-                        }
                     if store_info.get("need_customer_hint"):
                         return {
                             "success": False,
@@ -1936,6 +1908,22 @@ class OrderToHuadingTemplate:
                             "possible_customers": store_info.get("possible_customers", []),
                             "message": f"门店「{store_info.get('store_name_submitted', '未知')}」未找到匹配，但可能属于以下货主"
                         }
+                    if not _is_auto_confirmed_store_match(store_info):
+                        submitted = store_info.get("store_name_submitted", store_name_val or order_data.get("store_name", ""))
+                        response = _store_confirm_response(submitted, store_info)
+                        if _HAS_EVENT_BUS:
+                            EventBus.emit("store_confirm_needed", {
+                                "session_id": order_session_id,
+                                "timestamp": time.time(),
+                                "store_name_submitted": submitted,
+                                "matched_store": response["matched_store"],
+                                "candidates": response.get("candidates", []),
+                                "top_similarity": response["matched_store"].get("similarity", 0),
+                                "match_type": response["matched_store"].get("match_type", "unknown"),
+                                "match_layer": response["matched_store"].get("match_type", "unknown"),
+                                "need_customer_hint": False,
+                            })
+                        return response
 
                 owner_code = store_info.get("owner_code", self.shipper_id) if store_info else self.shipper_id
                 sku_results, unmatched_items = object.__getattribute__(self, '_match_sku')(order_data["items"], owner_code)
