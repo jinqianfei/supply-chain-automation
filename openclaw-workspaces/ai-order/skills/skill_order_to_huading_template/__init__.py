@@ -1814,75 +1814,6 @@ class OrderToHuadingTemplate:
                             "need_store_match": True,
                             "store_name_submitted": store_name_for_match
                         }
-                    # 门店匹配后必须用户确认（含相似度信息）
-                    if si.get("need_confirm") or si.get("candidates"):
-                        top_c = si["candidates"][0] if si.get("candidates") else {}
-                        top_sim = top_c.get("similarity", 0)
-                        # v5.9.0 Phase 1：emit 门店需要确认事件
-                        if _HAS_EVENT_BUS:
-                            EventBus.emit("store_confirm_needed", {
-                                "session_id": order_session_id,
-                                "timestamp": time.time(),
-                                "store_name_submitted": store_name_for_match,
-                                "matched_store": {
-                                    "store_code": si.get("store_code", top_c.get("store_code", "")),
-                                    "store_name": si.get("store_name", top_c.get("store_name", "")),
-                                    "owner_code": si.get("owner_code", top_c.get("owner_code", "")),
-                                },
-                                "candidates": si.get("candidates", []),
-                                "top_similarity": top_sim,
-                                "match_type": si.get("match_type", top_c.get("match_type", "")),
-                                "match_layer": si.get("match_type", top_c.get("match_type", "")),
-                                "need_customer_hint": False,
-                            })
-                        return {
-                            "success": False,
-                            "need_store_confirm": True,
-                            "store_name_submitted": store_name_for_match,
-                            "candidates": si.get("candidates", []),
-                            "matched_store": {
-                                "store_code": si.get("store_code", top_c.get("store_code", "")),
-                                "store_name": si.get("store_name", top_c.get("store_name", "")),
-                                "owner_code": si.get("owner_code", top_c.get("owner_code", "")),
-                                "owner_name": si.get("owner_name", top_c.get("owner_name", "")),
-                                "warehouse_name": si.get("warehouse_name", top_c.get("warehouse_name", "")),
-                                "warehouse_code": si.get("warehouse_code", top_c.get("warehouse_code", "")),
-                                "address": si.get("address", top_c.get("address", "")),
-                                "contact_person": si.get("contact_person", top_c.get("contact_person", "")),
-                                "phone": si.get("phone", top_c.get("phone", "")),
-                                "similarity": top_sim,
-                                "match_type": si.get("match_type", top_c.get("match_type", "")),
-                                "match_method": si.get("match_method", ""),
-                            },
-                            "message": f"门店「{store_name_for_match}」→ {si.get('store_name', top_c.get('store_name', ''))}（相似度{top_sim:.0f}%），请确认"
-                        }
-                    if si.get("need_customer_hint"):
-                        # 多候选时：顶候选相似度 >= 90% 则自动确认
-                        top_c = si["candidates"][0]
-                        top_sim = top_c.get("similarity", 0)
-                        if top_sim >= 90.0 or top_sim >= 0.9:
-                            c = top_c
-                            si = {
-                                "store_code": c["store_code"],
-                                "store_name": c["store_name"],
-                                "owner_code": c["owner_code"],
-                                "owner_name": c.get("owner_name", ""),
-                                "warehouse_name": c.get("warehouse_name", ""),
-                                "warehouse_code": c.get("warehouse_code", ""),
-                                "address": c.get("address", ""),
-                                "contact_person": c.get("contact_person", ""),
-                                "phone": c.get("phone", ""),
-                                "match_type": "auto_confirm",
-                                "match_method": f"自动确认（顶候选相似度{top_sim}）"
-                            }
-                        else:
-                            return {
-                                "success": False,
-                                "need_store_confirm": True,
-                                "store_name_submitted": store_name_for_match,
-                                "candidates": si.get("candidates", []),
-                                "message": f"门店「{store_name_for_match}」找到 {len(si.get('candidates', []))} 个候选门店（最高相似度{top_sim}）"
-                            }
                     if si.get("need_customer_hint"):
                         return {
                             "success": False,
@@ -1891,6 +1822,21 @@ class OrderToHuadingTemplate:
                             "possible_customers": si.get("possible_customers", []),
                             "message": f"门店「{store_name_for_match}」未找到匹配，但可能属于以下货主"
                         }
+                    if not confirmed_store and not _is_auto_confirmed_store_match(si):
+                        response = _store_confirm_response(store_name_for_match, si)
+                        if _HAS_EVENT_BUS:
+                            EventBus.emit("store_confirm_needed", {
+                                "session_id": order_session_id,
+                                "timestamp": time.time(),
+                                "store_name_submitted": store_name_for_match,
+                                "matched_store": response["matched_store"],
+                                "candidates": response.get("candidates", []),
+                                "top_similarity": response["matched_store"].get("similarity", 0),
+                                "match_type": response["matched_store"].get("match_type", "unknown"),
+                                "match_layer": response["matched_store"].get("match_type", "unknown"),
+                                "need_customer_hint": False,
+                            })
+                        return response
 
                     owner_code = si.get("owner_code", self.shipper_id)
                     sku_results, unmatched_items = object.__getattribute__(self, '_match_sku')(store_items, owner_code)
