@@ -232,8 +232,8 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
             order_quantity: float = 1,
             db_config: Optional[dict] = None) -> dict:
     """
-    SKU映射 — 委托给 map_sku_batch 保持逻辑一致（v5.13.0）
-    
+    SKU映射 - 委托给 map_sku_batch 保持逻辑一致(v5.13.0)
+
     Args:
         owner_code: 货主ID
         product_name: 商品名称
@@ -261,7 +261,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
 def _map_sku_legacy(owner_code: str, product_name: str, unit: str = "",
                     order_quantity: float = 1,
                     db_config: Optional[dict] = None) -> dict:
-    """[已废弃] 原始 map_sku 实现 — 保留供参考，不再调用"""
+    """[已废弃] 原始 map_sku 实现 - 保留供参考,不再调用"""
     if db_config is None:
         db_config = get_default_db_config()
 
@@ -297,7 +297,7 @@ def _map_sku_legacy(owner_code: str, product_name: str, unit: str = "",
     """, (owner_code, product_name))
     alias_rows = cur.fetchall()
     if alias_rows:
-        r = alias_rows[0]  # 临时取第一个，单位选择后置
+        r = alias_rows[0]  # 临时取第一个,单位选择后置
         conn.close()
         result = _build_result(r, confidence=0.98, original_product_name=product_name)
         result["match_method"] = "Layer 0 别名表精确匹配"
@@ -312,7 +312,7 @@ def _map_sku_legacy(owner_code: str, product_name: str, unit: str = "",
     """, (owner_code, product_name, product_name))
     rows = cur.fetchall()
     if rows:
-        r = rows[0]  # 临时取第一个，单位选择后置
+        r = rows[0]  # 临时取第一个,单位选择后置
         conn.close()
         result = _build_result(r, confidence=0.95, original_product_name=product_name)
         result["match_method"] = "Layer 1 精确匹配"
@@ -337,7 +337,7 @@ def _map_sku_legacy(owner_code: str, product_name: str, unit: str = "",
                         spec_candidates.append(row)
                 if spec_candidates:
                     rows = spec_candidates  # 规格匹配的子集
-            r = rows[0]  # 临时取第一个，单位选择后置
+            r = rows[0]  # 临时取第一个,单位选择后置
             conn.close()
             result = _build_result(r, confidence=0.93, original_product_name=product_name)
             result["match_method"] = "Layer 1b 精确匹配(去除规格后)"
@@ -649,23 +649,29 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
     order_spec = _extract_spec_from_name(product_name)
     clean_name = _clean_product_name(product_name)
 
-    # Layer 0: 别名表(只做名称匹配,单位选择后置)
+    # Layer 0: 别名表（v5.13.2：多候选时返回 candidates 让用户选）
     if product_name in alias_groups:
         candidate_rows = alias_groups[product_name]
-        r = candidate_rows[0]  # 临时取第一个,单位选择由 map_sku_batch 后置步骤完成
+        r = candidate_rows[0]
         result = _build_result(r, confidence=0.98, original_product_name=product_name)
         result["match_method"] = "Layer 0 别名表精确匹配"
+        if len(candidate_rows) > 1:
+            result["candidates"] = [_build_result(cr, confidence=0.98) for cr in candidate_rows]
+            result["need_confirm"] = True
         return result
 
-    # Layer 1: 精确匹配(只做名称匹配,单位选择后置)
+    # Layer 1: 精确匹配（v5.13.2：多候选时返回 candidates 让用户选）
     exact_matches = [r for r in all_skus if r[1] == product_name or r[6] == product_name]
     if exact_matches:
-        r = exact_matches[0]  # 临时取第一个
+        r = exact_matches[0]
         result = _build_result(r, confidence=0.95, original_product_name=product_name)
         result["match_method"] = "Layer 1 精确匹配"
+        if len(exact_matches) > 1:
+            result["candidates"] = [_build_result(m, confidence=0.95) for m in exact_matches]
+            result["need_confirm"] = True
         return result
 
-    # Layer 1b: 清洗后精确匹配(只做名称匹配,单位选择后置)
+    # Layer 1b: 清洗后精确匹配（v5.13.2：多候选时返回 candidates 让用户选）
     if clean_name != product_name:
         clean_matches = [r for r in all_skus if r[1] == clean_name or r[6] == clean_name]
         if clean_matches:
@@ -673,9 +679,12 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
                 spec_candidates = [r for r in clean_matches if _spec_match_score(order_spec, r[5] or "") >= 0.5]
                 if spec_candidates:
                     clean_matches = spec_candidates
-            r = clean_matches[0]  # 临时取第一个
+            r = clean_matches[0]
             result = _build_result(r, confidence=0.93, original_product_name=product_name)
-            result["match_method"] = "Layer 1b 精确匹配(去除规格后)"
+            result["match_method"] = "Layer 1b 精确匹配（去除规格后）"
+            if len(clean_matches) > 1:
+                result["candidates"] = [_build_result(m, confidence=0.93) for m in clean_matches]
+                result["need_confirm"] = True
             return result
 
     # Layer 2: 模糊匹配

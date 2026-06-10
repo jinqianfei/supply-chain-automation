@@ -5,6 +5,16 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.13.1] - 2026-06-10
+
+### Changed
+- **SKU匹配与单位选择解耦**：名称匹配和单位选择分成两个独立步骤
+  - `_map_single_in_batch()` 只做名称匹配，返回 sku_name
+  - `map_sku_batch()` 后置步骤：用 sku_name 查同名 SKU + 订单单位精确匹配选择
+  - `_resolve_unit_type()` 简化为：单位精确匹配 → 匹配不上用第一个 SKU
+  - `map_sku()` 委托给 `map_sku_batch()` 保持逻辑一致
+- 测试：单元测试 12/12，端到端 12/12 = 100%
+
 ## [5.13.0] - 2026-06-10
 
 ### Fixed
