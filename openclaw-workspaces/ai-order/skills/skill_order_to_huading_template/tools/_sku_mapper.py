@@ -232,34 +232,36 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
             order_quantity: float = 1,
             db_config: Optional[dict] = None) -> dict:
     """
-    SKU映射 - 5层匹配策略,查 SKU_TABLE 表,按 shipper_id 过滤
-
-    Layer 0: 别名表查表(完整订单商品名精确匹配)
-    Layer 1: 精确匹配(sku_name 或 customer_code 完全一致)
-    Layer 2: 模糊匹配 + 规格校验(去除规格描述后匹配,再验证规格)
-    Layer 3: 分词关键词匹配 + 规格校验 + 包含关系加成
-
+    SKU映射 — 委托给 map_sku_batch 保持逻辑一致（v5.13.0）
+    
     Args:
         owner_code: 货主ID
-        product_name: 商品名称(可能包含规格描述)
-        unit: 原始单位(可选,用于 unit_type 判断)
-        order_quantity: 订单数量(用于选择出库单位,v5.12.0)
+        product_name: 商品名称
+        unit: 订单单位
+        order_quantity: 订单数量
         db_config: 数据库配置
-
-    Returns:
-        {
-            "matched": True/False,
-            "confidence": float,
-            "sku_code": str,
-            "sku_name": str,
-            "unit_type": "大单位"/"小单位"/"中单位",
-            "conversion_ratio": float,
-            "product_spec": str,
-            "unit": str,
-            "match_method": str,
-            "need_confirm": bool,  # 多个中单位时为 True
-        }
     """
+    items = [{
+        "product_name": product_name,
+        "spec": "",
+        "unit": unit or "件",
+        "quantity": order_quantity,
+        "seq": 1,
+    }]
+    results, unmatched = map_sku_batch(owner_code, items, db_config)
+    if results:
+        return results[0]
+    return {
+        "matched": False, "confidence": 0.0, "sku_code": "",
+        "sku_name": product_name, "unit_type": "", "conversion_ratio": 1.0,
+        "product_spec": "", "unit": unit or "件", "match_method": "未匹配",
+    }
+
+
+def _map_sku_legacy(owner_code: str, product_name: str, unit: str = "",
+                    order_quantity: float = 1,
+                    db_config: Optional[dict] = None) -> dict:
+    """[已废弃] 原始 map_sku 实现 — 保留供参考，不再调用"""
     if db_config is None:
         db_config = get_default_db_config()
 
