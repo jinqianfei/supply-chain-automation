@@ -1880,17 +1880,24 @@ class OrderToHuadingTemplate:
             )
 
             if order_data.get("_multi_store") and order_data.get("stores"):
-                # 【多门店模式】遍历每个门店
+                # 【多门店模式】两阶段处理：
+                #   Phase A: 匹配所有门店 → 一次性展示给用户确认
+                #   Phase B: 全部确认后 → 批量 SKU 匹配
                 stores_dict = order_data["stores"]
 
+                # ── Phase A: 遍历所有门店，收集匹配结果 ──
+                all_store_matches = []   # 所有门店匹配结果（含已确认+待确认）
+                pending_stores = []      # 需要用户确认的门店
+                failed_stores = []       # 匹配失败的门店
+                store_items_map = {}     # store_key → store_items（给 Phase B 用）
+
                 for store_key, store_data in stores_dict.items():
-                    # 获取该门店的商品（带 _store_name 标记的）
+                    # 获取该门店的商品
                     store_items = [it for it in order_data["items"] 
                                    if it.get("_store_name") == store_key 
                                    or it.get("_store_name") == store_data.get("store_name", store_key)]
                     if not store_items:
                         store_items = store_data.get("items", [])
-                        # 转换格式
                         store_items = [{
                             "seq": i + 1,
                             "product_code": str(it.get("product_code", "")).strip(),
@@ -1900,6 +1907,7 @@ class OrderToHuadingTemplate:
                             "unit": str(it.get("unit", "件")).strip(),
                             "remark": str(it.get("remark", "")).strip(),
                         } for i, it in enumerate(store_items)]
+                    store_items_map[store_key] = store_items
 
                     store_name_for_match = store_data.get("store_name", store_key)
                     confirmed_for_store = _confirmed_store_for(
@@ -1912,7 +1920,6 @@ class OrderToHuadingTemplate:
                         si.setdefault("_store_key", store_key)
                         si.setdefault("store_name_submitted", store_name_for_match)
                         confirmed_stores[store_key] = si
-                        # v5.9.0 Phase 1：emit 门店已确认事件
                         if _HAS_EVENT_BUS:
                             EventBus.emit("store_confirmed", {
                                 "session_id": order_session_id,
@@ -1933,45 +1940,120 @@ class OrderToHuadingTemplate:
                             address=store_data.get("store_address"),
                             contact_person=store_data.get("contact_person"),
                         )
+
+                    # 处理匹配结果
+                    is_confirmed = bool(confirmed_for_store)
+                    is_auto = False
+                    match_status = "pending"
+
                     if not si:
-                        return {
-                            **get_friendly_error("E201", f"门店「{store_name_for_match}」未找到匹配"),
-                            "need_store_match": True,
-                            "store_name_submitted": store_name_for_match
-                        }
-                    if si.get("need_customer_hint"):
-                        return {
-                            "success": False,
-                            "need_customer_hint": True,
+                        failed_stores.append({
+                            "store_key": store_key,
                             "store_name_submitted": store_name_for_match,
+                            "error": "门店未找到匹配",
+                        })
+                        match_status = "failed"
+                    elif si.get("need_customer_hint"):
+                        failed_stores.append({
+                            "store_key": store_key,
+                            "store_name_submitted": store_name_for_match,
+                            "error": "需要货主提示",
                             "possible_customers": si.get("possible_customers", []),
-                            "message": f"门店「{store_name_for_match}」未找到匹配，但可能属于以下货主"
-                        }
-                    if not confirmed_for_store and not _is_auto_confirmed_store_match(si):
-                        response = _store_confirm_response(
-                            store_name_for_match,
-                            si,
-                            store_key=store_key,
-                            order_data_cache=_order_cache_with_confirmations(order_data, confirmed_stores),
-                            confirmed_stores=confirmed_stores,
-                        )
-                        if _HAS_EVENT_BUS:
-                            EventBus.emit("store_confirm_needed", {
-                                "session_id": order_session_id,
-                                "timestamp": time.time(),
-                                "store_name_submitted": store_name_for_match,
-                                "matched_store": response["matched_store"],
-                                "candidates": response.get("candidates", []),
-                                "top_similarity": response["matched_store"].get("similarity", 0),
-                                "match_type": response["matched_store"].get("match_type", "unknown"),
-                                "match_layer": response["matched_store"].get("match_type", "unknown"),
-                                "need_customer_hint": False,
-                            })
-                        return response
-                    if not confirmed_for_store and _is_auto_confirmed_store_match(si):
+                        })
+                        match_status = "need_hint"
+                    elif confirmed_for_store:
+                        is_confirmed = True
+                        is_auto = True
+                        match_status = "confirmed"
+                    elif _is_auto_confirmed_store_match(si):
                         si.setdefault("_store_key", store_key)
                         si.setdefault("store_name_submitted", store_name_for_match)
                         confirmed_stores[store_key] = si
+                        is_confirmed = True
+                        is_auto = True
+                        match_status = "auto_confirmed"
+                    else:
+                        # 需要用户确认
+                        pending_stores.append(store_key)
+                        match_status = "pending"
+
+                    # 构建该门店的匹配结果
+                    store_match_info = {
+                        "store_key": store_key,
+                        "store_name_submitted": store_name_for_match,
+                        "items_count": len(store_items),
+                        "items": store_items,
+                        "status": match_status,
+                        "is_confirmed": is_confirmed,
+                        "is_auto_confirmed": is_auto,
+                    }
+                    if si:
+                        store_match_info["matched_store"] = {
+                            "store_code": si.get("store_code", ""),
+                            "store_name": si.get("store_name", ""),
+                            "owner_code": si.get("owner_code", ""),
+                            "owner_name": si.get("owner_name", ""),
+                            "warehouse_name": si.get("warehouse_name", ""),
+                            "warehouse_code": si.get("warehouse_code", ""),
+                            "address": si.get("address", ""),
+                            "contact_person": si.get("contact_person", ""),
+                            "phone": si.get("phone", ""),
+                            "similarity": si.get("similarity", 0),
+                            "match_type": si.get("match_type", ""),
+                            "match_method": si.get("match_method", ""),
+                            "_store_key": store_key,
+                            "store_name_submitted": store_name_for_match,
+                        }
+                        store_match_info["candidates"] = si.get("candidates", [])
+                    all_store_matches.append(store_match_info)
+
+                # ── 如果有待确认门店 → 一次性返回所有门店匹配结果 ──
+                if pending_stores or failed_stores:
+                    confirmed_count = sum(1 for m in all_store_matches if m["is_confirmed"])
+                    pending_count = len(pending_stores)
+                    failed_count = len(failed_stores)
+
+                    if _HAS_EVENT_BUS:
+                        for pm in all_store_matches:
+                            if pm["status"] == "pending" and pm.get("matched_store"):
+                                EventBus.emit("store_confirm_needed", {
+                                    "session_id": order_session_id,
+                                    "timestamp": time.time(),
+                                    "store_name_submitted": pm["store_name_submitted"],
+                                    "matched_store": pm["matched_store"],
+                                    "candidates": pm.get("candidates", []),
+                                    "top_similarity": pm["matched_store"].get("similarity", 0),
+                                    "match_type": pm["matched_store"].get("match_type", "unknown"),
+                                    "match_layer": pm["matched_store"].get("match_type", "unknown"),
+                                    "need_customer_hint": False,
+                                    "batch_mode": True,
+                                    "batch_total": len(all_store_matches),
+                                    "batch_pending": pending_count,
+                                })
+
+                    return {
+                        "success": False,
+                        "need_store_confirm": True,
+                        "batch_mode": True,
+                        "all_store_matches": all_store_matches,
+                        "pending_store_keys": pending_stores,
+                        "pending_count": pending_count,
+                        "confirmed_count": confirmed_count,
+                        "failed_count": failed_count,
+                        "failed_stores": failed_stores,
+                        "confirmed_stores": confirmed_stores,
+                        "order_data_cache": _order_cache_with_confirmations(order_data, confirmed_stores),
+                        "message": f"共 {len(all_store_matches)} 个门店：{confirmed_count} 已确认，{pending_count} 待确认，{failed_count} 失败。请确认所有门店后继续"
+                    }
+
+                # ── Phase B: 所有门店已确认 → 批量 SKU 匹配 ──
+                for store_key, store_data in stores_dict.items():
+                    store_items = store_items_map.get(store_key, [])
+                    store_name_for_match = store_data.get("store_name", store_key)
+                    si = confirmed_stores.get(store_key)
+                    if not si:
+                        # 不应发生（Phase A 已确保全部确认）
+                        continue
 
                     owner_code = si.get("owner_code", self.shipper_id)
                     sku_results, unmatched_items = object.__getattribute__(self, '_match_sku')(store_items, owner_code)
