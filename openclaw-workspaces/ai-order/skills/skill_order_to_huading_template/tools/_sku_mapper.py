@@ -194,7 +194,64 @@ def _has_core_word_match(clean_name: str, sku_name: str) -> bool:
     return False
 
 
+def _resolve_unit_type(rows: list, order_quantity: float = 1) -> tuple:
+    """
+    根据订单数量和 conversion_ratio 选择最合适的出库单位（v5.12.0）
+    
+    规则：
+    - 同一商品名下，ratio 最大 = 大单位，ratio 最小 = 小单位，中间 = 中单位
+    - order_quantity >= max_ratio → 用大单位（够一整件）
+    - order_quantity < max_ratio 且有中单位 → 用最接近 order_quantity 的中单位
+    - order_quantity < max_ratio 且无中单位 → 用小单位
+    - 多个同 ratio 的中单位 → need_confirm（需用户确认）
+    
+    Args:
+        rows: 同名商品的 SKU 记录列表 (sku_code, sku_name, unit, unit_type, conversion_ratio, ...)
+        order_quantity: 订单数量
+    
+    Returns:
+        (selected_row, need_confirm, all_candidates)
+    """
+    if not rows:
+        return (None, False, [])
+    if len(rows) == 1:
+        return (rows[0], False, rows)
+    
+    # 按 conversion_ratio 分组
+    ratio_groups = {}
+    for r in rows:
+        ratio = float(r[4]) if r[4] else 1.0
+        ratio_groups.setdefault(ratio, []).append(r)
+    
+    ratios = sorted(ratio_groups.keys())
+    
+    if len(ratios) == 1:
+        return (rows[0], False, rows)
+    
+    max_ratio = ratios[-1]
+    min_ratio = ratios[0]
+    mid_ratios = ratios[1:-1]  # 排除最大最小
+    
+    # 选择逻辑
+    if order_quantity >= max_ratio:
+        # 够一整件 → 大单位
+        selected = ratio_groups[max_ratio][0]
+        return (selected, False, rows)
+    
+    if mid_ratios:
+        # 有中单位候选 → 选最接近 order_quantity 的
+        best_mid = min(mid_ratios, key=lambda r: abs(r - order_quantity))
+        candidates = ratio_groups[best_mid]
+        need_confirm = len(candidates) > 1
+        return (candidates[0], need_confirm, rows)
+    
+    # 只有大/小两种，不够一件 → 小单位
+    selected = ratio_groups[min_ratio][0]
+    return (selected, False, rows)
+
+
 def map_sku(owner_code: str, product_name: str, unit: str = "",
+            order_quantity: float = 1,
             db_config: Optional[dict] = None) -> dict:
     """
     SKU映射 - 5层匹配策略，查 SKU_TABLE 表，按 shipper_id 过滤
@@ -208,6 +265,7 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
         owner_code: 货主ID
         product_name: 商品名称（可能包含规格描述）
         unit: 原始单位（可选，用于 unit_type 判断）
+        order_quantity: 订单数量（用于选择出库单位，v5.12.0）
         db_config: 数据库配置
     
     Returns:
@@ -216,11 +274,12 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
             "confidence": float,
             "sku_code": str,
             "sku_name": str,
-            "unit_type": "大单位"/"小单位",
+            "unit_type": "大单位"/"小单位"/"中单位",
             "conversion_ratio": float,
             "product_spec": str,
             "unit": str,
-            "match_method": str,  # 新增：匹配方式说明
+            "match_method": str,
+            "need_confirm": bool,  # 多个中单位时为 True
         }
     """
     if db_config is None:
@@ -255,15 +314,16 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
         FROM {ALIAS_TABLE} a
         JOIN {SKU_TABLE} p ON p.sku_name = a.system_product_name AND p.shipper_id = a.shipper_id
         WHERE a.shipper_id = %s AND a.order_product_name = %s
-        ORDER BY p.unit_type DESC
-        LIMIT 3
     """, (owner_code, product_name))
     alias_rows = cur.fetchall()
     if alias_rows:
-        r = alias_rows[0]
+        r, need_unit_confirm, _ = _resolve_unit_type(alias_rows, order_quantity)
         conn.close()
         result = _build_result(r, confidence=0.98, original_product_name=product_name)
         result["match_method"] = "Layer 0 别名表精确匹配"
+        if need_unit_confirm:
+            result["need_confirm"] = True
+            result["unit_confirm_msg"] = "多个中单位候选，请确认出库单位"
         return result
 
     # ========== Layer 1: 精确匹配（原始名称） ==========
@@ -272,14 +332,16 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
         FROM {SKU_TABLE}
         WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}'
           AND (sku_name = %s OR customer_code = %s)
-        ORDER BY CASE WHEN unit_type = '大单位' THEN 0 ELSE 1 END
     """, (owner_code, product_name, product_name))
     rows = cur.fetchall()
     if rows:
-        r = rows[0]
+        r, need_unit_confirm, _ = _resolve_unit_type(rows, order_quantity)
         conn.close()
         result = _build_result(r, confidence=0.95, original_product_name=product_name)
         result["match_method"] = "Layer 1 精确匹配"
+        if need_unit_confirm:
+            result["need_confirm"] = True
+            result["unit_confirm_msg"] = "多个中单位候选，请确认出库单位"
         return result
 
     # ========== Layer 1b: 精确匹配（清洗后名称） ==========
@@ -289,29 +351,26 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
             FROM {SKU_TABLE}
             WHERE shipper_id = %s AND status = '{ACTIVE_STATUS}'
               AND (sku_name = %s OR customer_code = %s)
-            ORDER BY CASE WHEN unit_type = '大单位' THEN 0 ELSE 1 END
         """, (owner_code, clean_name, clean_name))
         rows = cur.fetchall()
         if rows:
-            # 如果有规格，进一步筛选
+            # 如果有规格，先按规格筛选缩小范围
             if order_spec and len(rows) > 1:
-                # 用规格筛选
-                best_row = None
-                best_score = 0
+                spec_candidates = []
                 for row in rows:
                     spec_score = _spec_match_score(order_spec, row[5] or "")
-                    if spec_score > best_score:
-                        best_score = spec_score
-                        best_row = row
-                if best_row and best_score >= 0.5:
-                    r = best_row
-                else:
-                    r = rows[0]  # 没有合适的规格匹配，用第一个
-            else:
-                r = rows[0]
+                    if spec_score >= 0.5:
+                        spec_candidates.append(row)
+                if spec_candidates:
+                    rows = spec_candidates  # 规格匹配的子集
+            # 用 _resolve_unit_type 按订单数量选择出库单位
+            r, need_unit_confirm, _ = _resolve_unit_type(rows, order_quantity)
             conn.close()
             result = _build_result(r, confidence=0.93, original_product_name=product_name)
             result["match_method"] = "Layer 1b 精确匹配（去除规格后）"
+            if need_unit_confirm:
+                result["need_confirm"] = True
+                result["unit_confirm_msg"] = "多个中单位候选，请确认出库单位"
             return result
 
     # ========== Layer 2: 模糊匹配（清洗后名称） ==========
