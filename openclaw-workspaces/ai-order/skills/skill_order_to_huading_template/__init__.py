@@ -54,7 +54,8 @@ def _import_skill_attr(module_path: str, attr_name: str):
     try:
         module = importlib.import_module(absolute_name)
     except ModuleNotFoundError as exc:
-        if exc.name != "skills":
+        missing = exc.name or ""
+        if missing != "skills" and not missing.startswith("skills.skill_order_to_huading_template"):
             raise
         module = importlib.import_module(module_path)
     return getattr(module, attr_name)
