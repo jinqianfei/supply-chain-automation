@@ -194,20 +194,19 @@ def _has_core_word_match(clean_name: str, sku_name: str) -> bool:
     return False
 
 
-def _resolve_unit_type(rows: list, order_quantity: float = 1) -> tuple:
+def _resolve_unit_type(rows: list, order_quantity: float = 1, order_unit: str = "") -> tuple:
     """
-    根据订单数量和 conversion_ratio 选择最合适的出库单位（v5.12.0）
+    根据订单单位 + 数量 + conversion_ratio 选择最合适的出库单位（v5.12.0）
     
-    规则：
-    - 同一商品名下，ratio 最大 = 大单位，ratio 最小 = 小单位，中间 = 中单位
-    - order_quantity >= max_ratio → 用大单位（够一整件）
-    - order_quantity < max_ratio 且有中单位 → 用最接近 order_quantity 的中单位
-    - order_quantity < max_ratio 且无中单位 → 用小单位
-    - 多个同 ratio 的中单位 → need_confirm（需用户确认）
+    优先级：
+    1. 订单单位匹配 — order_unit 与 SKU 的 unit 字段精确匹配
+    2. 数量+ratio 匹配 — order_quantity >= max_ratio → 大单位，否则 → 小单位
+    3. 多个同 ratio 候选 → need_confirm（需用户确认）
     
     Args:
         rows: 同名商品的 SKU 记录列表 (sku_code, sku_name, unit, unit_type, conversion_ratio, ...)
         order_quantity: 订单数量
+        order_unit: 订单单位（如“件”“包”“袋”“瓶”）
     
     Returns:
         (selected_row, need_confirm, all_candidates)
@@ -217,7 +216,16 @@ def _resolve_unit_type(rows: list, order_quantity: float = 1) -> tuple:
     if len(rows) == 1:
         return (rows[0], False, rows)
     
-    # 按 conversion_ratio 分组
+    # ========== 优先级 1: 订单单位精确匹配 ==========
+    if order_unit:
+        unit_matches = [r for r in rows if r[2] == order_unit]
+        if len(unit_matches) == 1:
+            return (unit_matches[0], False, rows)
+        elif len(unit_matches) > 1:
+            # 多个 SKU 用同一个单位名称 → need_confirm
+            return (unit_matches[0], True, rows)
+    
+    # ========== 优先级 2: 数量 + ratio 匹配 ==========
     ratio_groups = {}
     for r in rows:
         ratio = float(r[4]) if r[4] else 1.0
@@ -232,20 +240,17 @@ def _resolve_unit_type(rows: list, order_quantity: float = 1) -> tuple:
     min_ratio = ratios[0]
     mid_ratios = ratios[1:-1]  # 排除最大最小
     
-    # 选择逻辑
     if order_quantity >= max_ratio:
-        # 够一整件 → 大单位
         selected = ratio_groups[max_ratio][0]
         return (selected, False, rows)
     
     if mid_ratios:
-        # 有中单位候选 → 选最接近 order_quantity 的
         best_mid = min(mid_ratios, key=lambda r: abs(r - order_quantity))
         candidates = ratio_groups[best_mid]
         need_confirm = len(candidates) > 1
         return (candidates[0], need_confirm, rows)
     
-    # 只有大/小两种，不够一件 → 小单位
+    # 不够一件 → 小单位
     selected = ratio_groups[min_ratio][0]
     return (selected, False, rows)
 
