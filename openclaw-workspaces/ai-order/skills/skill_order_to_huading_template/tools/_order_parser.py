@@ -23,6 +23,25 @@ except ImportError:
 # 全局 Router 实例（延迟初始化）
 _llm_router = None
 
+_PROXY_ENV_KEYS = (
+    "SOCKS_PROXY", "socks_proxy",
+    "ALL_PROXY", "all_proxy",
+    "HTTPS_PROXY", "https_proxy",
+    "HTTP_PROXY", "http_proxy",
+    "NO_PROXY", "no_proxy",
+)
+
+
+def _clear_proxy_env():
+    """Remove proxy env vars before LLM calls.
+
+    The OpenAI/httpx stack honors lowercase proxy variables too. Leaving
+    all_proxy=socks5://... in the environment makes calls fail when socksio is
+    not installed, even if uppercase proxy vars were already removed.
+    """
+    for key in _PROXY_ENV_KEYS:
+        os.environ.pop(key, None)
+
 
 def _get_llm_router():
     """获取 LLM Router 实例（延迟初始化）"""
@@ -78,11 +97,8 @@ def parse(order_input: str, order_type: str = "auto",
     if order_type == "auto":
         order_type = detect_input_type(order_input)
 
-    # 移除代理（防止LLM调用失败）
-    for k in ["SOCKS_PROXY", "ALL_PROXY", "HTTPS_PROXY", "HTTP_PROXY"]:
-        os.environ.pop(k, None)
-    os.environ.pop("no_proxy", None)
-    os.environ.pop("NO_PROXY", None)
+    # 移除代理（防止 LLM 调用失败）
+    _clear_proxy_env()
 
     # 根据类型选择解析路径
     if order_type == "excel":
@@ -881,6 +897,7 @@ def _call_llm(text_content: str, content_type: str = "text") -> Dict[str, Any]:
     try:
         # 加载 .env
         _load_env()
+        _clear_proxy_env()
         
         # 构建 prompt
         prompt_template = _MULTI_PROMPT_TEMPLATE if content_type == "excel" else _SINGLE_PROMPT_TEMPLATE
