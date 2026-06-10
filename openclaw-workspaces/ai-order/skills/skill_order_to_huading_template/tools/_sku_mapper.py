@@ -640,43 +640,33 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
     order_spec = _extract_spec_from_name(product_name)
     clean_name = _clean_product_name(product_name)
 
-    # Layer 0: 别名表 — 使用 _resolve_unit_type 选择出库单位（v5.12.0）
+    # Layer 0: 别名表（只做名称匹配，单位选择后置）
     if product_name in alias_groups:
         candidate_rows = alias_groups[product_name]
-        r, need_unit_confirm, _ = _resolve_unit_type(candidate_rows, quantity, unit)
+        r = candidate_rows[0]  # 临时取第一个，单位选择由 map_sku_batch 后置步骤完成
         result = _build_result(r, confidence=0.98, original_product_name=product_name)
         result["match_method"] = "Layer 0 别名表精确匹配"
-        if need_unit_confirm:
-            result["need_confirm"] = True
-            result["unit_confirm_msg"] = "多个中单位候选，请确认出库单位"
         return result
 
-    # Layer 1: 精确匹配 — 收集同名SKU，用 _resolve_unit_type 选择（v5.12.0）
+    # Layer 1: 精确匹配（只做名称匹配，单位选择后置）
     exact_matches = [r for r in all_skus if r[1] == product_name or r[6] == product_name]
     if exact_matches:
-        r, need_unit_confirm, _ = _resolve_unit_type(exact_matches, quantity, unit)
+        r = exact_matches[0]  # 临时取第一个
         result = _build_result(r, confidence=0.95, original_product_name=product_name)
         result["match_method"] = "Layer 1 精确匹配"
-        if need_unit_confirm:
-            result["need_confirm"] = True
-            result["unit_confirm_msg"] = "多个中单位候选，请确认出库单位"
         return result
 
-    # Layer 1b: 清洗后精确匹配 — 收集同名SKU，用 _resolve_unit_type 选择（v5.12.0）
+    # Layer 1b: 清洗后精确匹配（只做名称匹配，单位选择后置）
     if clean_name != product_name:
         clean_matches = [r for r in all_skus if r[1] == clean_name or r[6] == clean_name]
         if clean_matches:
-            # 如果有规格，先按规格筛选缩小范围
             if order_spec and len(clean_matches) > 1:
                 spec_candidates = [r for r in clean_matches if _spec_match_score(order_spec, r[5] or "") >= 0.5]
                 if spec_candidates:
                     clean_matches = spec_candidates
-            r, need_unit_confirm, _ = _resolve_unit_type(clean_matches, quantity, unit)
+            r = clean_matches[0]  # 临时取第一个
             result = _build_result(r, confidence=0.93, original_product_name=product_name)
             result["match_method"] = "Layer 1b 精确匹配（去除规格后）"
-            if need_unit_confirm:
-                result["need_confirm"] = True
-                result["unit_confirm_msg"] = "多个中单位候选，请确认出库单位"
             return result
 
     # Layer 2: 模糊匹配
