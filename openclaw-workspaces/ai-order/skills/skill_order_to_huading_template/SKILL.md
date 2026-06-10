@@ -58,7 +58,7 @@ Step 3: _match_store()  ← ⚠️ 人工确认点（不再自动确认）
 Step 4: _match_sku()  ← ⚠️ 人工确认点（SKU映射）
    输入: 商品列表 + owner_code（货主ID）
    处理: product_sku + product_name_alias，5层匹配
-   输出: sku_results + unmatched_items（置信度<0.8告警）
+   输出: need_sku_confirm=True + review_data + sku_results + unmatched_items
 
          ↓ 【用户确认SKU映射结果】
 
@@ -525,7 +525,18 @@ if result.get("need_store_confirm"):
     result = skill.execute(
         order_input=order_input,
         order_type=order_type,
+        order_data_cache=result["order_data_cache"],
         confirmed_store=result["matched_store"]
+    )
+
+# 确认SKU映射后生成Excel
+if result.get("need_sku_confirm"):
+    result = skill.execute(
+        order_input=order_input,
+        order_type=order_type,
+        order_data_cache=result["order_data_cache"],
+        confirmed_store={"confirmed_stores": result["confirmed_stores"]},
+        confirmed_sku=True
     )
 ```
 
@@ -593,8 +604,8 @@ class OrderToHuadingTemplate:
     __公开接口__ = ['execute']
     
     # 内部工具函数（AI 不得直接调用）
-    def _tools_parse(self, ...):  # ← AI 不应直接调用
-    def _tools_transform(self, ...):  # ← AI 不应直接调用
+    def tools_parse(self, ...):  # ← AI 不应直接调用
+    def tools_transform(self, ...):  # ← AI 不应直接调用
     def _match_store(self, ...):  # ← AI 不应直接调用
     def _match_sku(self, ...):  # ← AI 不应直接调用
 ```
