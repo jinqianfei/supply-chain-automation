@@ -18,12 +18,15 @@ SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SKILL_DIR)
 
 # 关键：让 events/ learn/ 能被绝对 import
+RUN_DB_INTEGRATION_TESTS = os.getenv("RUN_DB_INTEGRATION_TESTS") == "1"
+if not RUN_DB_INTEGRATION_TESTS:
+    os.environ.setdefault("SKIP_FEEDBACK_SCHEMA_ENSURE", "1")
+
 from events.bus import EventBus
 from learn.collector import FeedbackCollector, init_feedback_collector, get_feedback_collector
 from db.connection import get_default_db_config
 
 
-RUN_DB_INTEGRATION_TESTS = os.getenv("RUN_DB_INTEGRATION_TESTS") == "1"
 DB_CONFIG = get_default_db_config()
 
 

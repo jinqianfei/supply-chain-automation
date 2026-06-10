@@ -315,6 +315,11 @@ class FeedbackCollector:
             return
         try:
             cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO layer_success_rate (entity_type, layer_name, layer_description)
+                VALUES (%(entity)s, %(layer)s, %(layer)s)
+                ON CONFLICT (entity_type, layer_name) DO NOTHING
+            """, {"entity": entity_type, "layer": layer_name})
             if confirmed:
                 cur.execute("""
                     UPDATE layer_success_rate
