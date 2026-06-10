@@ -889,7 +889,7 @@ class OrderToHuadingTemplate:
         try:
             import psycopg2
             
-            conn = psycopg2.connect(**self.db_config, sslmode='require')
+            conn = psycopg2.connect(**self.db_config)
             cur = conn.cursor()
             
             cur.execute("SELECT warehouse_name, warehouse_code FROM warehouse_code_mapping")
@@ -2266,7 +2266,7 @@ class OrderToHuadingTemplate:
             import psycopg2
             from difflib import SequenceMatcher
             
-            conn = psycopg2.connect(**self.db_config, sslmode='require')
+            conn = psycopg2.connect(**self.db_config)
             cur = conn.cursor()
             
             # ========== 第0层：客户公司匹配（优先）==========
@@ -2775,7 +2775,7 @@ class OrderToHuadingTemplate:
             import psycopg2
             import json
             
-            conn = psycopg2.connect(**self.db_config, sslmode='require')
+            conn = psycopg2.connect(**self.db_config)
             cur = conn.cursor()
             
             # Step 1: 用 sku_code 找到该SKU对应的商品名称
