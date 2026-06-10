@@ -3123,11 +3123,14 @@ class OrderToHuadingTemplate:
                 "sku_name": result["sku_name"],  # SKU名称（华鼎商品名称）
                 "huading_quantity": result.get("quantity", 1),  # 华鼎数量（通常与客户数量一致）
                 "huading_unit": result.get("unit", "件"),  # 华鼎单位
-                "unit_type": result.get("unit_type", ""),  # 单位类型（大/中/小单位，v5.12.0 不再默认大单位）
+                "unit_type": result.get("unit_type", ""),  # 单位类型（大/中/小单位）
                 # 状态
                 "matched": True,
                 "confidence": result.get("confidence", 1.0),
-                "match_method": result.get("match_method", "")
+                "match_method": result.get("match_method", ""),
+                # v5.13.2: 多候选 SKU
+                "candidates": result.get("candidates", []),
+                "need_confirm": result.get("need_confirm", False),
             }
             comparison_table.append(row)
             
