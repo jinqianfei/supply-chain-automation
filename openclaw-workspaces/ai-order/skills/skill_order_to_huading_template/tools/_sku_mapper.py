@@ -44,8 +44,8 @@ def _clean_product_name(name: str) -> str:
     - 原逻辑错误去掉了 - 和连接符,导致 Layer 1 精确匹配失败
     - 例如 辣白菜D-X-H 被洗成 辣白菜DXH,与数据库不匹配
     """
-    # 去除所有括号及其内容
-    cleaned = re.sub(r'[((][^))]*[))]', '', name)
+    # 去除所有括号及其内容（含中文括号（））
+    cleaned = re.sub(r'[\uff08(][^)\uff09]*[\uff09)]', '', name)
     # 去除多余空格,但保留连接符(-、-、_)
     cleaned = re.sub(r'\s+', '', cleaned)
     return cleaned.strip()
