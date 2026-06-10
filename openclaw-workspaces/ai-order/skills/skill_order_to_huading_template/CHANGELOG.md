@@ -51,6 +51,24 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - 临时测试脚本 `test_order9_e2e.py` 可删
 - `_build_result()` 未改（避免破坏 Layer 2/3 模糊匹配的其它调用方）
 
+## [5.10.0] - 2026-06-06
+
+### Added
+- **技术锁（v5.10.0 主体）**：`OrderToHuadingTemplate` 类通过 `__getattribute__` 拦截内部函数调用
+- 防止 AI 跳过 `execute()` 主入口直接调用 `_match_store()` / `_match_sku()` 等内部函数
+- 公开接口白名单机制（`__公开接口__ = ['execute', 'tools_parse', 'tools_transform']`）
+- 内部初始化白名单（`__内部初始化__ = ['_load_warehouse_mapping', '_load_field_mapping', '_check_db_connection', '_init_db_repos']`），仅 `__init__` 期间可绕过技术锁
+
+### Changed
+- 所有内部方法（`_` 前缀）默认对 AI 不可见，直接 `.attr` 访问抛 `OrderSkillError("E001")`
+- 业务内部调用绕过技术锁：`object.__getattribute__(self, '_match_sku')` 模式（不影响运行时）
+- 错误码 `E001` 复用（与"文件不存在"共码，但 detail 区分）
+
+### Notes
+- 5.9.1 增量 patch（仅 bump VERSION）曾被 `git reset` 撤销，但 5.9.0 主体（技术锁）保留到本版本
+- SKILL.md 头 `5.9` 与 VERSION/CHANGELOG 此前未同步，5.10.0 落地时一并补齐
+- 技术锁仅拦截 Python 层 `getattr`，不影响 subprocess / DB driver / 文件 I/O
+
 ## [5.9.0] - 2026-06-05
 
 ## [5.11.0] - 2026-06-09
@@ -70,18 +88,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - 本次 LLM Provider 改造后，数据库配置统一使用 .env 中的环境变量（默认 RDS 云端）- 本次重构解决了「skill 无法直接用平台模型」的问题
 - 与 Phase 3.0 字段名采集正交，可独立演进
 - 建议：先部署 5.11.0 验证 LLM Router，再做 Phase 3.0
-### Added
-- **技术锁**：`OrderToHuadingTemplate` 类通过 `__getattribute__` 拦截内部函数调用
-- 防止 AI 跳过 `execute()` 主入口直接调用 `_match_store()` / `_match_sku()` 等内部函数
-- 公开接口白名单机制：`execute()` / `parse_only()` / `validate_db()` / `get_version()`
-
-### Changed
-- 所有内部方法（`_` 前缀）通过 `__内部初始化__` 字典存储，对外不可见
-- AI 必须通过 `skill.execute()` 入口调用
-
-### Notes
-- 本次 LLM Provider 改造后，数据库配置统一使用 .env 中的环境变量（默认 RDS 云端）- 本次修改的对话背景：5.9.1 增量 patch（仅 bump VERSION）被 reset 撤销，但 5.9.0 主体（技术锁）保留
-- SKILL.md 头 5.9 与 VERSION/CHANGELOG 此前未同步，本次补齐
 
 ### Phase 1 — 自适应学习系统 (2026-06-08)
 
