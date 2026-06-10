@@ -310,13 +310,10 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
     """, (owner_code, product_name, product_name))
     rows = cur.fetchall()
     if rows:
-        r, need_unit_confirm, _ = _resolve_unit_type(rows, order_quantity, unit)
+        r = rows[0]  # 临时取第一个，单位选择后置
         conn.close()
         result = _build_result(r, confidence=0.95, original_product_name=product_name)
         result["match_method"] = "Layer 1 精确匹配"
-        if need_unit_confirm:
-            result["need_confirm"] = True
-            result["unit_confirm_msg"] = "多个中单位候选,请确认出库单位"
         return result
 
     # ========== Layer 1b: 精确匹配(清洗后名称) ==========
@@ -338,14 +335,10 @@ def map_sku(owner_code: str, product_name: str, unit: str = "",
                         spec_candidates.append(row)
                 if spec_candidates:
                     rows = spec_candidates  # 规格匹配的子集
-            # 用 _resolve_unit_type 按订单单位+数量选择出库单位
-            r, need_unit_confirm, _ = _resolve_unit_type(rows, order_quantity, unit)
+            r = rows[0]  # 临时取第一个，单位选择后置
             conn.close()
             result = _build_result(r, confidence=0.93, original_product_name=product_name)
             result["match_method"] = "Layer 1b 精确匹配(去除规格后)"
-            if need_unit_confirm:
-                result["need_confirm"] = True
-                result["unit_confirm_msg"] = "多个中单位候选,请确认出库单位"
             return result
 
     # ========== Layer 2: 模糊匹配(清洗后名称) ==========
