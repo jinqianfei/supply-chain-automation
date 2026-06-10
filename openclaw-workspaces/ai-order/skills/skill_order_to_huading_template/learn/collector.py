@@ -14,6 +14,7 @@ learn/collector.py — FeedbackCollector（v5.9.0 Phase 1）
 - 数据库连接失败不影响主流程（容错）
 """
 import time
+import os
 from typing import Optional, Dict, Any, List
 
 # 进程内全局单例（避免重复订阅）
@@ -44,6 +45,8 @@ class FeedbackCollector:
         self.db_config = db_config
         self._current_order: Optional[Dict] = None  # 当前订单上下文
         self._order_started_at: Optional[float] = None
+        if os.getenv("SKIP_FEEDBACK_SCHEMA_ENSURE") != "1":
+            self._ensure_schema()
 
         # 订阅 10 个事件
         from events.bus import EventBus
@@ -207,6 +210,25 @@ class FeedbackCollector:
             print(f"[FeedbackCollector] DB connect error: {e}", flush=True)
             return None
 
+    def _ensure_schema(self):
+        """确保学习反馈表存在。失败只打日志，不影响订单主流程。"""
+        conn = self._get_conn()
+        if not conn:
+            return
+        try:
+            schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
+            with open(schema_path, "r", encoding="utf-8") as f:
+                schema_sql = f.read()
+            cur = conn.cursor()
+            cur.execute(schema_sql)
+            conn.commit()
+            cur.close()
+        except Exception as e:
+            print(f"[FeedbackCollector] ensure schema error: {e}", flush=True)
+            conn.rollback()
+        finally:
+            conn.close()
+
     def _write_order_feedback(self, order: Dict) -> Optional[int]:
         """写入 order_feedback 主表，返回 feedback_id"""
         from .adapter import EventAdapter
@@ -226,7 +248,7 @@ class FeedbackCollector:
                     user_confirmed, user_modified,
                     corrections, modifications,
                     processing_time_ms, skill_version,
-                    owner_code, source_file, alerts,
+                    owner_code, source_file, output_file, alerts,
                     data_source
                 ) VALUES (
                     %(session_id)s, %(order_type)s,
@@ -236,7 +258,7 @@ class FeedbackCollector:
                     %(user_confirmed)s, %(user_modified)s,
                     %(corrections)s::jsonb, %(modifications)s::jsonb,
                     %(processing_time_ms)s, %(skill_version)s,
-                    %(owner_code)s, %(source_file)s, %(alerts)s::jsonb,
+                    %(owner_code)s, %(source_file)s, %(output_file)s, %(alerts)s::jsonb,
                     %(data_source)s
                 )
                 RETURNING id
