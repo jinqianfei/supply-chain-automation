@@ -41,6 +41,7 @@ class EventAdapter:
             "skill_version": event_data.get("skill_version", ""),
             "owner_code": event_data.get("owner_code", ""),
             "source_file": event_data.get("source_file", ""),
+            "output_file": event_data.get("output_file", ""),
             "alerts": json.dumps(event_data.get("alerts", []) or [], ensure_ascii=False),
             "data_source": "event_bus",
         }

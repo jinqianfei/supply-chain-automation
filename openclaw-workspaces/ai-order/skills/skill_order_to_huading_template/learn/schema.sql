@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS order_feedback (
     skill_version TEXT,
     owner_code TEXT,
     source_file TEXT,
+    output_file TEXT,
+    data_source TEXT DEFAULT 'event_bus',
     alerts JSONB DEFAULT '[]',
     created_at TIMESTAMP DEFAULT NOW()
 );
@@ -40,6 +42,9 @@ CREATE INDEX IF NOT EXISTS idx_feedback_skill_version ON order_feedback(skill_ve
 CREATE INDEX IF NOT EXISTS idx_feedback_owner ON order_feedback(owner_code);
 CREATE INDEX IF NOT EXISTS idx_feedback_session ON order_feedback(session_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_created ON order_feedback(created_at DESC);
+
+ALTER TABLE order_feedback ADD COLUMN IF NOT EXISTS output_file TEXT;
+ALTER TABLE order_feedback ADD COLUMN IF NOT EXISTS data_source TEXT DEFAULT 'event_bus';
 
 -- ============================================================
 -- order_corrections：用户纠正记录（结构化）
