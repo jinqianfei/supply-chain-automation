@@ -292,7 +292,7 @@ def _get_download_url(output_file: str) -> str:
 class OrderToHuadingTemplate:
     """订单转华鼎出库单模板Skill"""
     
-    VERSION = "5.0"  # LLM解析版本
+    VERSION = "5.11.2"
     
     # ========== AI调用约束（方案1：技术层面）==========
     # AI 只能调用这些公开接口，不得直接调用内部工具函数
@@ -2018,7 +2018,7 @@ class OrderToHuadingTemplate:
                     _elapsed_ms = int(time.time() * 1000) - _started_ms
                     _first_store = (all_store_results[0] if all_store_results else {}).get("store_info", {}) or {}
                     _total_skus = sum(len(r.get("sku_results") or []) for r in all_store_results)
-                    _auto_matched = sum(1 for r in all_store_results for s in (r.get("sku_results") or []) if (s.get("match_score") or 0) >= 0.9)
+                    _auto_matched = max(0, _total_skus - total_unmatched)
                     EventBus.emit("order_complete", {
                         "session_id": order_session_id,
                         "timestamp": time.time(),
