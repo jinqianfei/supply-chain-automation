@@ -1,0 +1,52 @@
+# 通知接收人配置
+# 自学习模块改进建议推送
+
+# 用户列表
+users:
+  - user_id: "ou_3ca0a1a1f283c774915d4656143464cc"  # 金姐飞书 open_id
+    name: "金倩菲"
+    channel: "feishu"
+    role: "admin"  # 管理员，接收所有通知
+
+  # 钉钉用户（迁移后添加）
+  # - user_id: "钉钉userId"
+  #   name: "金倩菲"
+  #   channel: "dingtalk"
+  #   role: "admin"
+
+# 审批类型 → 通知接收人
+approvers:
+  alias_expansion:  # 别名表扩充
+    - role: "admin"
+
+  threshold_tuning:  # 阈值调优
+    - role: "admin"
+
+  keyword_update:  # 关键词库更新
+    - role: "admin"
+
+  cleaning_rule:  # 清洗规则增强
+    - role: "admin"
+
+  new_layer:  # 新增匹配层
+    - role: "admin"
+
+# 推送频率
+schedule:
+  alias_expansion: "daily_10am"  # 每天10点汇总
+  threshold_tuning: "on_discovery"  # 发现即推
+  keyword_update: "on_discovery"
+  cleaning_rule: "on_discovery"
+  new_layer: "on_discovery"
+
+# IM 渠道配置
+channels:
+  feishu:
+    enabled: true
+    # app_id 和 app_secret 从环境变量读取
+    # FEISHU_APP_ID / FEISHU_APP_SECRET
+
+  dingtalk:
+    enabled: false
+    # robot_webhook 和 robot_secret 从环境变量读取
+    # DINGTALK_ROBOT_WEBHOOK / DINGTALK_ROBOT_SECRET
