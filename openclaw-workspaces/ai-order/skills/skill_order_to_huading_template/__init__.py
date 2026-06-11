@@ -2284,6 +2284,15 @@ class OrderToHuadingTemplate:
                         "review_data": review_data,
                     }
 
+                # v5.14.0 audit: 应用修正后重新生成 review_data + 统计
+                review_data = object.__getattribute__(self, '_generate_mapping_comparison_multi')(
+                    order_data=order_data,
+                    all_store_results=all_store_results,
+                )
+                total_items = sum(len(r["sku_results"]) + len(r["unmatched_items"]) for r in all_store_results)
+                total_unmatched = sum(len(r["unmatched_items"]) for r in all_store_results)
+                has_issues = total_unmatched > 0 or review_data["summary"]["alert_count"] > 0
+
             # ========== 生成合并模板（所有门店写入同一个sheet）==========
             object.__getattribute__(self, '_generate_multi_store_template')(order_data, all_store_results, output_file)
 
