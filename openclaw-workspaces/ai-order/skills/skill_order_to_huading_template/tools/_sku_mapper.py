@@ -83,8 +83,8 @@ def _extract_spec_from_name(name: str) -> str:
         if m:
             return m.group(0)
 
-    # 检查括号内容是否像规格(包含数字和单位)
-    match = re.search(r'[((]([^))]+)[))]', name)
+    # 检查括号内容是否像规格(包含数字和单位) - 支持中英文括号
+    match = re.search(r'[\uff08(]([^\uff09)]+)[\uff09)]', name)
     if match:
         content = match.group(1)
         if re.search(r'\d', content) and re.search(r'[包袋箱件个条]', content):
