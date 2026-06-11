@@ -759,6 +759,18 @@ def map_sku_batch(owner_code: str, items: List[Dict],
         alias_groups.setdefault(r[0], []).append(r[1:])
     conn.close()
 
+    # v5.15.1: 加载 yaml SKU 别名（自学习模块维护，优先级高于 DB 别名）
+    yaml_aliases = _load_yaml_sku_aliases(owner_code)
+    # 将 yaml 别名合并到 alias_groups（yaml 优先）
+    for order_name, system_name in yaml_aliases.items():
+        if order_name in alias_groups:
+            continue  # DB 已有，不覆盖
+        # 从 all_skus 中查找 system_name 对应的 SKU
+        yaml_matches = [r for r in all_skus if r[1] == system_name]
+        if yaml_matches:
+            # 转换为和 DB 别名相同的格式: (sku_code, sku_name, unit, unit_type, conversion_ratio, product_spec, customer_code)
+            alias_groups[order_name] = [(r[0], r[1], r[2], r[3], r[4], r[5], r[6]) for r in yaml_matches]
+
     results = []
     unmatched_items = []
 
