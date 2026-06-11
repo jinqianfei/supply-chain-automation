@@ -12,6 +12,25 @@ from difflib import SequenceMatcher
 import re
 
 
+def _strip_brand_prefix(store_name: str) -> str:
+    """去除品牌前缀，提取门店具体名称部分"""
+    # 常见品牌前缀（从实际数据中提取）
+    prefixes = [
+        "制茶青年-", "制茶青年",
+        "廖朵朵-", "廖朵朵蛋糕-", "廖朵朵",
+        "口口椰-K", "口口椰-", "口口椰",
+        "创宇-", "创宇",
+        "阿朴社长-", "阿朴社长济南-", "阿朴社长",
+        "V甜-", "V甜",
+        "哎渔村", "哎渔村-",
+    ]
+    for prefix in prefixes:
+        if store_name.startswith(prefix):
+            remainder = store_name[len(prefix):]
+            return remainder.lstrip("-").strip()
+    return store_name
+
+
 
 def _keyword_cross_match(store_name: str, db_config: Optional[dict]) -> Optional[dict]:
     """
@@ -497,7 +516,7 @@ def _get_by_owner(owner_code: str, db_config: Optional[dict] = None) -> List[dic
 
 
 def _find_by_phone(phone: str, db_config: Optional[dict] = None) -> Optional[dict]:
-    """按手机号精确查询门店"""
+    """按手机号查询门店（支持多门店复用场景）"""
     if not phone or not db_config:
         return None
     conn = _get_connection(db_config)
@@ -509,29 +528,30 @@ def _find_by_phone(phone: str, db_config: Optional[dict] = None) -> Optional[dic
                warehouse
         FROM store_list
         WHERE phone = %s
-        LIMIT 1
     """, (phone,))
 
-    r = cur.fetchone()
+    rows = cur.fetchall()
     cur.close()
     conn.close()
 
-    if not r:
+    if not rows:
         return None
 
-    return {
-        "store_code": r[0] or "",
-        "store_name": r[1] or "",
-        "owner_code": r[2] or "",
-        "owner_name": r[3] or "",
-        "province": r[4] or "",
-        "city": r[5] or "",
-        "district": r[6] or "",
-        "address": r[7] or "",
-        "phone": r[8] or "",
-        "contact_person": r[9] or "",
-        "warehouse": r[10] or "",
-    }
+    def _row_to_dict(r):
+        return {
+            "store_code": r[0] or "", "store_name": r[1] or "",
+            "owner_code": r[2] or "", "owner_name": r[3] or "",
+            "province": r[4] or "", "city": r[5] or "",
+            "district": r[6] or "", "address": r[7] or "",
+            "phone": r[8] or "", "contact_person": r[9] or "",
+            "warehouse": r[10] or "",
+        }
+
+    if len(rows) == 1:
+        return _row_to_dict(rows[0])
+
+    # 多门店共用手机号
+    return {"_multi": True, "stores": [_row_to_dict(r) for r in rows]}
 
 
 def _search_by_name(name: str, db_config: Optional[dict] = None) -> List[dict]:
