@@ -243,17 +243,10 @@ def match_store(store_name: str, customer_company: str = None,
         return _build_store_result(store, "exact", f"精确匹配（'{store_name}'）", db_config)
 
     if len(exact_matches) > 1:
-        _candidates = [_build_store_result(s, "exact", "", db_config) for s in exact_matches]
-        # v5.15.1 fix: 合并手机号候选
-        if _phone_candidate:
-            _phone_candidate["candidate_source"] = "phone_exact"
-            for c in _candidates:
-                c["candidate_source"] = "name_exact"
-            _candidates.append(_phone_candidate)
         return {
             "need_confirm": True,
             "store_name_submitted": store_name,
-            "candidates": _candidates,
+            "candidates": [_build_store_result(s, "exact", "", db_config) for s in exact_matches],
             "message": f"门店「{store_name}」找到 {len(exact_matches)} 个精确匹配"
         }
 
@@ -296,12 +289,6 @@ def match_store(store_name: str, customer_company: str = None,
     if scored:
         candidates = [_build_store_result(s, "fuzzy", f"相似度{r:.0%}", db_config)
                       for r, s in scored[:5]]
-        # v5.15.1 fix: 合并手机号候选
-        if _phone_candidate:
-            _phone_candidate["candidate_source"] = "phone_exact"
-            for c in candidates:
-                c["candidate_source"] = "name_fuzzy"
-            candidates.append(_phone_candidate)
         return {
             "need_confirm": True,
             "store_name_submitted": store_name,
