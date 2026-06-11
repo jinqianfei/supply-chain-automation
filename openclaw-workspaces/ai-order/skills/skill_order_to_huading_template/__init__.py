@@ -2459,6 +2459,7 @@ class OrderToHuadingTemplate:
                         "owner_code": _first_store.get("owner_code", ""),
                         "source_file": order_input if isinstance(order_input, str) else "",
                         "output_file": output_file,
+                        "submitted_by": submitted_by,
                     })
                 except Exception as _e:
                     print(f"[WARN] emit order_complete failed: {_e}", flush=True)

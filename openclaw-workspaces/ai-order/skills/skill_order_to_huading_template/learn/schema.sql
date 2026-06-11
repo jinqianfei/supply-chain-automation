@@ -45,6 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_feedback_created ON order_feedback(created_at DES
 
 ALTER TABLE order_feedback ADD COLUMN IF NOT EXISTS output_file TEXT;
 ALTER TABLE order_feedback ADD COLUMN IF NOT EXISTS data_source TEXT DEFAULT 'event_bus';
+ALTER TABLE order_feedback ADD COLUMN IF NOT EXISTS submitted_by TEXT;
 
 -- ============================================================
 -- order_corrections：用户纠正记录（结构化）
