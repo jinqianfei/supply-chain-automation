@@ -1,0 +1,794 @@
+[
+  {
+    "case_id": "C01",
+    "type": "门店名称模糊匹配_错别字",
+    "input": {
+      "store_name": "鱼你幸福北京三里屯店",
+      "phone": "13800138000"
+    },
+    "expected": "应该匹配到'鱼你幸福（北京三里屯店）'或类似门店",
+    "note": "测试门店名有错别字时的匹配能力"
+  },
+  {
+    "case_id": "C02",
+    "type": "门店名称模糊匹配_简写",
+    "input": {
+      "store_name": "廖朵朵徐州",
+      "phone": "15052047322"
+    },
+    "expected": "应该匹配到'廖朵朵-徐州沛县'或'廖朵朵-徐州xxx'",
+    "note": "测试门店名简写匹配"
+  },
+  {
+    "case_id": "C03",
+    "type": "门店不存在",
+    "input": {
+      "store_name": "不存在的门店XYZ123",
+      "phone": "13900000000"
+    },
+    "expected": "返回候选门店列表或标记为无法匹配",
+    "note": "测试门店不存在时的处理"
+  },
+  {
+    "case_id": "C04",
+    "type": "商品名称特殊字符",
+    "input": {
+      "store_name": "测试门店",
+      "items": [
+        {
+          "product_name": "鱼你幸福~!@#青花椒酱料",
+          "qty": 1,
+          "unit": "件"
+        }
+      ]
+    },
+    "expected": "能够匹配到正确的SKU",
+    "note": "测试商品名称包含特殊字符"
+  },
+  {
+    "case_id": "C05",
+    "type": "商品名称含别名后缀",
+    "input": {
+      "store_name": "测试门店",
+      "items": [
+        {
+          "product_name": "鱼你幸福青花椒酱料（新款）—原椒麻酱料",
+          "qty": 1,
+          "unit": "箱"
+        }
+      ]
+    },
+    "expected": "清洗后匹配到正确的SKU",
+    "note": "测试别名后缀清洗逻辑"
+  },
+  {
+    "case_id": "C06",
+    "type": "规格不一致_数量比例不同",
+    "input": {
+      "store_name": "测试门店",
+      "items": [
+        {
+          "product_name": "老坛酸辣酱",
+          "spec": "8包/箱",
+          "qty": 1,
+          "unit": "箱"
+        }
+      ]
+    },
+    "expected": "数据库规格为14包*1KG，测试是否能匹配",
+    "note": "测试规格数量比例不一致的处理"
+  },
+  {
+    "case_id": "C07",
+    "type": "数量为0或负数",
+    "input": {
+      "store_name": "测试门店",
+      "items": [
+        {
+          "product_name": "测试商品A",
+          "qty": 0,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品B",
+          "qty": -5,
+          "unit": "件"
+        }
+      ]
+    },
+    "expected": "数量异常应该被检测并告警",
+    "note": "测试数量为0或负数的情况"
+  },
+  {
+    "case_id": "C08",
+    "type": "缺少必填字段_无门店名",
+    "input": {
+      "items": [
+        {
+          "product_name": "测试商品",
+          "qty": 1,
+          "unit": "件"
+        }
+      ]
+    },
+    "expected": "应该检测到缺少门店名并报错",
+    "note": "测试缺少门店名的处理"
+  },
+  {
+    "case_id": "C09",
+    "type": "缺少必填字段_无商品",
+    "input": {
+      "store_name": "测试门店",
+      "items": []
+    },
+    "expected": "应该检测到商品列表为空并告警",
+    "note": "测试缺少商品的情况"
+  },
+  {
+    "case_id": "C10",
+    "type": "日期格式错误",
+    "input": {
+      "store_name": "测试门店",
+      "order_date": "2026/13/45",
+      "items": [
+        {
+          "product_name": "测试",
+          "qty": 1,
+          "unit": "件"
+        }
+      ]
+    },
+    "expected": "应该检测到日期格式错误并尝试修正",
+    "note": "测试日期格式错误处理"
+  },
+  {
+    "case_id": "C11",
+    "type": "门店名称含括号",
+    "input": {
+      "store_name": "鱼你幸福（北京 三里屯店）",
+      "phone": "13800138000"
+    },
+    "expected": "应该能正确匹配，去除括号后匹配",
+    "note": "测试门店名括号处理"
+  },
+  {
+    "case_id": "C12",
+    "type": "多个门店名称相似",
+    "input": {
+      "store_name": "鱼你幸福北京店",
+      "phone": "13800138000"
+    },
+    "expected": "可能匹配到多个相似门店，应该返回候选让用户选择",
+    "note": "测试多相似门店的情况"
+  },
+  {
+    "case_id": "C13",
+    "type": "商品名称完全匹配",
+    "input": {
+      "store_name": "测试门店",
+      "items": [
+        {
+          "product_name": "免浆巴沙鱼片",
+          "qty": 5,
+          "unit": "箱"
+        }
+      ]
+    },
+    "expected": "Layer 1精确匹配，置信度0.95",
+    "note": "测试商品名称精确匹配"
+  },
+  {
+    "case_id": "C14",
+    "type": "商品名称模糊匹配",
+    "input": {
+      "store_name": "测试门店",
+      "items": [
+        {
+          "product_name": "免浆巴沙鱼",
+          "qty": 5,
+          "unit": "箱"
+        }
+      ]
+    },
+    "expected": "Layer 2模糊匹配，相似度检测",
+    "note": "测试模糊匹配"
+  },
+  {
+    "case_id": "C15",
+    "type": "商品名称关键词匹配",
+    "input": {
+      "store_name": "测试门店",
+      "items": [
+        {
+          "product_name": "青花椒酱料",
+          "qty": 1,
+          "unit": "箱"
+        }
+      ]
+    },
+    "expected": "Layer 3分词关键词匹配",
+    "note": "测试分词关键词匹配"
+  },
+  {
+    "case_id": "C16",
+    "type": "单门店_单商品",
+    "input": {
+      "store_name": "测试门店",
+      "items": [
+        {
+          "product_name": "免浆黑鱼片",
+          "qty": 1,
+          "unit": "件"
+        }
+      ]
+    },
+    "expected": "简单场景，应该能快速匹配",
+    "note": "测试最小场景"
+  },
+  {
+    "case_id": "C17",
+    "type": "单门店_50商品",
+    "input": {
+      "store_name": "测试门店",
+      "items": [
+        {
+          "product_name": "测试商品1",
+          "qty": 1,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品2",
+          "qty": 2,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品3",
+          "qty": 3,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品4",
+          "qty": 4,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品5",
+          "qty": 5,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品6",
+          "qty": 6,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品7",
+          "qty": 7,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品8",
+          "qty": 8,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品9",
+          "qty": 9,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品10",
+          "qty": 10,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品11",
+          "qty": 11,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品12",
+          "qty": 12,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品13",
+          "qty": 13,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品14",
+          "qty": 14,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品15",
+          "qty": 15,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品16",
+          "qty": 16,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品17",
+          "qty": 17,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品18",
+          "qty": 18,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品19",
+          "qty": 19,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品20",
+          "qty": 20,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品21",
+          "qty": 21,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品22",
+          "qty": 22,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品23",
+          "qty": 23,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品24",
+          "qty": 24,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品25",
+          "qty": 25,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品26",
+          "qty": 26,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品27",
+          "qty": 27,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品28",
+          "qty": 28,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品29",
+          "qty": 29,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品30",
+          "qty": 30,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品31",
+          "qty": 31,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品32",
+          "qty": 32,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品33",
+          "qty": 33,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品34",
+          "qty": 34,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品35",
+          "qty": 35,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品36",
+          "qty": 36,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品37",
+          "qty": 37,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品38",
+          "qty": 38,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品39",
+          "qty": 39,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品40",
+          "qty": 40,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品41",
+          "qty": 41,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品42",
+          "qty": 42,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品43",
+          "qty": 43,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品44",
+          "qty": 44,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品45",
+          "qty": 45,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品46",
+          "qty": 46,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品47",
+          "qty": 47,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品48",
+          "qty": 48,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品49",
+          "qty": 49,
+          "unit": "件"
+        },
+        {
+          "product_name": "测试商品50",
+          "qty": 50,
+          "unit": "件"
+        }
+      ]
+    },
+    "expected": "测试大量商品的处理性能",
+    "note": "测试大批量商品处理"
+  },
+  {
+    "case_id": "C18",
+    "type": "多门店_每门店10商品",
+    "input": {
+      "stores": [
+        {
+          "name": "门店1",
+          "items": [
+            {
+              "product_name": "商品1-1",
+              "qty": 1,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品1-2",
+              "qty": 2,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品1-3",
+              "qty": 3,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品1-4",
+              "qty": 4,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品1-5",
+              "qty": 5,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品1-6",
+              "qty": 6,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品1-7",
+              "qty": 7,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品1-8",
+              "qty": 8,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品1-9",
+              "qty": 9,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品1-10",
+              "qty": 10,
+              "unit": "件"
+            }
+          ]
+        },
+        {
+          "name": "门店2",
+          "items": [
+            {
+              "product_name": "商品2-1",
+              "qty": 1,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品2-2",
+              "qty": 2,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品2-3",
+              "qty": 3,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品2-4",
+              "qty": 4,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品2-5",
+              "qty": 5,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品2-6",
+              "qty": 6,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品2-7",
+              "qty": 7,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品2-8",
+              "qty": 8,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品2-9",
+              "qty": 9,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品2-10",
+              "qty": 10,
+              "unit": "件"
+            }
+          ]
+        },
+        {
+          "name": "门店3",
+          "items": [
+            {
+              "product_name": "商品3-1",
+              "qty": 1,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品3-2",
+              "qty": 2,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品3-3",
+              "qty": 3,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品3-4",
+              "qty": 4,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品3-5",
+              "qty": 5,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品3-6",
+              "qty": 6,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品3-7",
+              "qty": 7,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品3-8",
+              "qty": 8,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品3-9",
+              "qty": 9,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品3-10",
+              "qty": 10,
+              "unit": "件"
+            }
+          ]
+        },
+        {
+          "name": "门店4",
+          "items": [
+            {
+              "product_name": "商品4-1",
+              "qty": 1,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品4-2",
+              "qty": 2,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品4-3",
+              "qty": 3,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品4-4",
+              "qty": 4,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品4-5",
+              "qty": 5,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品4-6",
+              "qty": 6,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品4-7",
+              "qty": 7,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品4-8",
+              "qty": 8,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品4-9",
+              "qty": 9,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品4-10",
+              "qty": 10,
+              "unit": "件"
+            }
+          ]
+        },
+        {
+          "name": "门店5",
+          "items": [
+            {
+              "product_name": "商品5-1",
+              "qty": 1,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品5-2",
+              "qty": 2,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品5-3",
+              "qty": 3,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品5-4",
+              "qty": 4,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品5-5",
+              "qty": 5,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品5-6",
+              "qty": 6,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品5-7",
+              "qty": 7,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品5-8",
+              "qty": 8,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品5-9",
+              "qty": 9,
+              "unit": "件"
+            },
+            {
+              "product_name": "商品5-10",
+              "qty": 10,
+              "unit": "件"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": "测试多门店场景下的序号生成和门店匹配",
+    "note": "测试多门店场景"
+  },
+  {
+    "case_id": "C19",
+    "type": "联系人匹配",
+    "input": {
+      "contact_person": "李壮",
+      "phone": "15349889777"
+    },
+    "expected": "通过联系人+手机号匹配到正确门店",
+    "note": "测试联系人匹配兜底"
+  },
+  {
+    "case_id": "C20",
+    "type": "货主ID不匹配",
+    "input": {
+      "store_name": "廖朵朵-徐州沛县",
+      "owner_code": "HZ2024061300001"
+    },
+    "expected": "应该提示货主ID与门店不匹配",
+    "note": "测试货主ID验证"
+  }
+]

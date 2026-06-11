@@ -1,0 +1,44 @@
+{
+  "evaluation_date": "2026-06-05 10:44",
+  "skill_version": "v5.8",
+  "method": "方案A - Skill自我判断",
+  "total_items": 112,
+  "total_matched": 107,
+  "total_unmatched": 5,
+  "low_confidence": 22,
+  "accuracy_pct": 95.5,
+  "orders": [
+    {
+      "source": "广州仓报单明细",
+      "stores_count": 3,
+      "items": 10,
+      "matched": 8,
+      "accuracy": 80.0,
+      "low_confidence": 4
+    },
+    {
+      "source": "郑州仓报单明细",
+      "stores_count": 2,
+      "items": 14,
+      "matched": 11,
+      "accuracy": 78.57142857142857,
+      "low_confidence": 5
+    },
+    {
+      "source": "华鼎下单5.29",
+      "stores_count": 2,
+      "items": 14,
+      "matched": 14,
+      "accuracy": 100.0,
+      "low_confidence": 0
+    },
+    {
+      "source": "华鼎出库单20260529",
+      "stores_count": 12,
+      "items": 74,
+      "matched": 74,
+      "accuracy": 100.0,
+      "low_confidence": 13
+    }
+  ]
+}

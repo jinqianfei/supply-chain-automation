@@ -1,0 +1,544 @@
+{
+  "timestamp": "2026-06-02 14:35:46",
+  "version": "5.4",
+  "store_match_accuracy": 1.0,
+  "sku_match_accuracy": 0.45454545454545453,
+  "store_match_details": [
+    {
+      "original": "K阜阳淮河吾悦广场店（李壮）",
+      "source": "华鼎洪洪通5.29",
+      "matched": "口口椰-K阜阳淮河吾悦广场店（李壮）",
+      "match_method": "包含匹配（'K阜阳淮河吾悦广场店（李壮）'→'口口椰-K阜阳淮河吾悦广场店（李壮）'）",
+      "success": true
+    },
+    {
+      "original": "曹县店",
+      "source": "阿朴社长曹县店",
+      "matched": "阿朴社长-菏泽曹县店",
+      "match_method": "包含匹配（'曹县店'→'阿朴社长-菏泽曹县店'）",
+      "success": true
+    },
+    {
+      "original": "鱼你幸福（深圳沙井京基百纳店）",
+      "source": "广州仓报单明细",
+      "matched": "鱼你幸福（深圳沙井京基百纳店）",
+      "match_method": "精确匹配（'鱼你幸福（深圳沙井京基百纳店）'）",
+      "success": true
+    },
+    {
+      "original": "鱼你幸福（东莞大岭山店）",
+      "source": "广州仓报单明细",
+      "matched": "鱼你幸福（东莞大岭山店）",
+      "match_method": "精确匹配（'鱼你幸福（东莞大岭山店）'）",
+      "success": true
+    },
+    {
+      "original": "鱼你幸福（广西平果店）",
+      "source": "广州仓报单明细",
+      "matched": "鱼你幸福（广西平果店）",
+      "match_method": "精确匹配（'鱼你幸福（广西平果店）'）",
+      "success": true
+    },
+    {
+      "original": "鱼你幸福（山东临沂店）",
+      "source": "郑州仓报单明细",
+      "matched": "鱼你幸福（山东临沂店）",
+      "match_method": "精确匹配（'鱼你幸福（山东临沂店）'）",
+      "success": true
+    },
+    {
+      "original": "鱼你幸福 （太原公元时代购物中心店）",
+      "source": "郑州仓报单明细",
+      "matched": "鱼你幸福 （太原公元时代购物中心店）",
+      "match_method": "精确匹配（'鱼你幸福 （太原公元时代购物中心店）'）",
+      "success": true
+    },
+    {
+      "original": "小江溪长治万达店",
+      "source": "小江溪江西菜长治万达店",
+      "matched": "小江溪·江西菜（长治万达店）",
+      "match_method": "关键词交叉匹配（覆盖率86%）",
+      "success": true
+    },
+    {
+      "original": "门店1",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店2",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店3",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店4",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店5",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店6",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店7",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店8",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店9",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店10",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店11",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店12",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店13",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店14",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店15",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店16",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店17",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店18",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店19",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店20",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店21",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    },
+    {
+      "original": "门店22",
+      "source": "配送明细表26",
+      "matched": "N/A",
+      "match_method": "skipped",
+      "success": true
+    }
+  ],
+  "sku_match_details": [
+    {
+      "source": "华鼎洪洪通5.29",
+      "product_name": "椰子水950ml",
+      "matched_sku": "SK231013000200",
+      "expected_skus": [
+        "SK231013000200"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": true
+    },
+    {
+      "source": "阿朴社长曹县店",
+      "product_name": "芝士排骨",
+      "matched_sku": "SK260126001519",
+      "expected_skus": [
+        "SK260126001519",
+        "SK260126001525",
+        "SK260312000332",
+        "SK260126001535",
+        "SK260126001539"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": true
+    },
+    {
+      "source": "广州仓报单明细",
+      "product_name": "鱼你幸福青花椒酱料（新款）—原椒麻酱料",
+      "matched_sku": "SK250214000074",
+      "expected_skus": [
+        "SK250214000074",
+        "SK240803000119",
+        "SK240803000117"
+      ],
+      "confidence": 0.69,
+      "match_layer": "Layer 2 模糊匹配+规格校验（置信度低，需确认）名称81%+规格50%）",
+      "success": true
+    },
+    {
+      "source": "广州仓报单明细",
+      "product_name": "免浆巴沙鱼片",
+      "matched_sku": "SK240803000119",
+      "expected_skus": [
+        "SK251101000101"
+      ],
+      "confidence": 0.68,
+      "match_layer": "Layer 3 分词匹配（置信度低，需确认）名称85%+规格50%+加成5%）",
+      "success": false
+    },
+    {
+      "source": "广州仓报单明细",
+      "product_name": "免浆黑鱼片",
+      "matched_sku": "SK240803000117",
+      "expected_skus": [
+        "SK250612000056",
+        "SK250711000269",
+        "SK251101000101",
+        "SK240802000170"
+      ],
+      "confidence": 0.67,
+      "match_layer": "Layer 3 分词匹配（置信度低，需确认）名称83%+规格50%+加成5%）",
+      "success": false
+    },
+    {
+      "source": "广州仓报单明细",
+      "product_name": "老坛酸辣酱（箱装款14包*1KG）",
+      "matched_sku": "SK251101000101",
+      "expected_skus": [
+        "SK250214000074",
+        "SK240803000119",
+        "SK240803000117"
+      ],
+      "confidence": 0.93,
+      "match_layer": "Layer 1b 精确匹配（去除规格后）",
+      "success": false
+    },
+    {
+      "source": "广州仓报单明细",
+      "product_name": "鱼你幸福金汤酱料（箱装款）",
+      "matched_sku": "SK240803000085",
+      "expected_skus": [
+        "SK250214000074",
+        "SK240803000119",
+        "SK240803000117"
+      ],
+      "confidence": 0.62,
+      "match_layer": "Layer 3 分词匹配（置信度低，需确认）名称75%+规格50%+加成5%）",
+      "success": false
+    },
+    {
+      "source": "广州仓报单明细",
+      "product_name": "鱼你幸福煲类专用酱料（箱装款）",
+      "matched_sku": "SK250612000056",
+      "expected_skus": [
+        "SK251101000101"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": false
+    },
+    {
+      "source": "广州仓报单明细",
+      "product_name": "鱼你幸福香辣酱料（箱装款）",
+      "matched_sku": "SK240803000085",
+      "expected_skus": [
+        "SK250612000056",
+        "SK250711000269",
+        "SK251101000101",
+        "SK240802000170"
+      ],
+      "confidence": 0.62,
+      "match_layer": "Layer 3 分词匹配（置信度低，需确认）名称75%+规格50%+加成5%）",
+      "success": false
+    },
+    {
+      "source": "郑州仓报单明细",
+      "product_name": "免浆黑鱼片",
+      "matched_sku": "SK240803000117",
+      "expected_skus": [
+        "SK240803000117",
+        "SK240803000119",
+        "SK250816000016",
+        "SK240803000093",
+        "SK240802000170"
+      ],
+      "confidence": 0.67,
+      "match_layer": "Layer 3 分词匹配（置信度低，需确认）名称83%+规格50%+加成5%）",
+      "success": true
+    },
+    {
+      "source": "郑州仓报单明细",
+      "product_name": "免浆巴沙鱼片",
+      "matched_sku": "SK240803000119",
+      "expected_skus": [
+        "SK240803000107",
+        "SK240802000170",
+        "SK240803000085",
+        "SK240803000081",
+        "SK240803000093",
+        "SK250214000074"
+      ],
+      "confidence": 0.68,
+      "match_layer": "Layer 3 分词匹配（置信度低，需确认）名称85%+规格50%+加成5%）",
+      "success": false
+    },
+    {
+      "source": "郑州仓报单明细",
+      "product_name": "鱼你幸福鸡爪（冷冻物品）",
+      "matched_sku": "SK240803000107",
+      "expected_skus": [
+        "SK240803000117",
+        "SK240803000119",
+        "SK250816000016",
+        "SK240803000093",
+        "SK240802000170"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": false
+    },
+    {
+      "source": "郑州仓报单明细",
+      "product_name": "鱼你幸福香辣酱料（箱装款）",
+      "matched_sku": "SK240803000085",
+      "expected_skus": [
+        "SK240803000107",
+        "SK240802000170",
+        "SK240803000085",
+        "SK240803000081",
+        "SK240803000093",
+        "SK250214000074"
+      ],
+      "confidence": 0.62,
+      "match_layer": "Layer 3 分词匹配（置信度低，需确认）名称75%+规格50%+加成5%）",
+      "success": true
+    },
+    {
+      "source": "小江溪江西菜长治万达店",
+      "product_name": "品名",
+      "matched_sku": null,
+      "expected_skus": [
+        "SK260511000225",
+        "SK260119000311",
+        "SK260511000227",
+        "SK260507000120",
+        "SK260508000042"
+      ],
+      "confidence": 0,
+      "match_layer": "no_match",
+      "success": false
+    },
+    {
+      "source": "华鼎下单5.29",
+      "product_name": "剁椒酱",
+      "matched_sku": "SK250327000076",
+      "expected_skus": [
+        "SK250327000076",
+        "SK250327000074",
+        "SK250327000025",
+        "SK250327000061",
+        "SK250327000072",
+        "SK260226000151",
+        "SK250327000057"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": true
+    },
+    {
+      "source": "华鼎下单5.29",
+      "product_name": "调面汁",
+      "matched_sku": "SK250327000074",
+      "expected_skus": [
+        "SK250327000076",
+        "SK260226000149",
+        "SK250327000061",
+        "SK260226000151",
+        "SK250327000051",
+        "SK250327000022",
+        "SK250327000075"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": false
+    },
+    {
+      "source": "华鼎下单5.29",
+      "product_name": "剁椒酱",
+      "matched_sku": "SK250327000076",
+      "expected_skus": [
+        "SK250327000076",
+        "SK250327000074",
+        "SK250327000025",
+        "SK250327000061",
+        "SK250327000072",
+        "SK260226000151",
+        "SK250327000057"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": true
+    },
+    {
+      "source": "华鼎下单5.29",
+      "product_name": "大料粉",
+      "matched_sku": "SK260226000149",
+      "expected_skus": [
+        "SK250327000076",
+        "SK260226000149",
+        "SK250327000061",
+        "SK260226000151",
+        "SK250327000051",
+        "SK250327000022",
+        "SK250327000075"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": true
+    },
+    {
+      "source": "天津仓订单",
+      "product_name": "潮迹潮汕牛肉丸",
+      "matched_sku": "SK241228000106",
+      "expected_skus": [
+        "SK241228000106",
+        "SK250820000194",
+        "SK250825000034",
+        "SK250908000961",
+        "SK250908000963",
+        "SK251219000076",
+        "SK260523001524"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": true
+    },
+    {
+      "source": "天津仓订单",
+      "product_name": "深岩静腌西冷牛排",
+      "matched_sku": "SK250820000194",
+      "expected_skus": [
+        "SK241225000055",
+        "SK241204000243",
+        "SK250923000371",
+        "SK240922000037"
+      ],
+      "confidence": 0.95,
+      "match_layer": "Layer 1 精确匹配",
+      "success": false
+    },
+    {
+      "source": "天津仓订单",
+      "product_name": "浩然奥尔良翅中（10袋）",
+      "matched_sku": "SK241225000055",
+      "expected_skus": [
+        "SK241228000106",
+        "SK250820000194",
+        "SK250825000034",
+        "SK250908000961",
+        "SK250908000963",
+        "SK251219000076",
+        "SK260523001524"
+      ],
+      "confidence": 0.93,
+      "match_layer": "Layer 1b 精确匹配（去除规格后）",
+      "success": false
+    },
+    {
+      "source": "天津仓订单",
+      "product_name": "浩然奥尔良翅根（10袋）",
+      "matched_sku": "SK241204000243",
+      "expected_skus": [
+        "SK241225000055",
+        "SK241204000243",
+        "SK250923000371",
+        "SK240922000037"
+      ],
+      "confidence": 0.93,
+      "match_layer": "Layer 1b 精确匹配（去除规格后）",
+      "success": true
+    }
+  ],
+  "unique_stores_tested": 24,
+  "sku_tests_total": 22
+}

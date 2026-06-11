@@ -1,0 +1,202 @@
+[
+  {
+    "item_id": "D01",
+    "original_name": "浩然猪大肠",
+    "spec": "10袋/箱",
+    "unit": "箱",
+    "expected_sku": "SK260523001524",
+    "expected_unit_type": "大单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D02",
+    "original_name": "浩然猪大肠",
+    "spec": "袋",
+    "unit": "袋",
+    "expected_sku": "SK260523001523",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D03",
+    "original_name": "调理品盒YLT-2216H30(白色，配吸水垫)",
+    "spec": "600个/箱",
+    "unit": "箱",
+    "expected_sku": "SK260522000102",
+    "expected_unit_type": "大单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D04",
+    "original_name": "调理品盒YLT-2216H30(白色，配吸水垫)",
+    "spec": "个",
+    "unit": "个",
+    "expected_sku": "SK260522000101",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D05",
+    "original_name": "战斧牛排盒YLT-3420H50-GX(透明，盖)",
+    "spec": "400个/箱",
+    "unit": "箱",
+    "expected_sku": "SK260522000100",
+    "expected_unit_type": "大单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D06",
+    "original_name": "战斧牛排盒YLT-3420H50-GX(透明，盖)",
+    "spec": "个",
+    "unit": "个",
+    "expected_sku": "SK260522000099",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D07",
+    "original_name": "战斧牛排盒YLT-3420H50(黑色，底)",
+    "spec": "200个/箱",
+    "unit": "箱",
+    "expected_sku": "SK260522000098",
+    "expected_unit_type": "大单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D08",
+    "original_name": "战斧牛排盒YLT-3420H50(黑色，底)",
+    "spec": "个",
+    "unit": "个",
+    "expected_sku": "SK260522000097",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D09",
+    "original_name": "深岩静腌眼肉牛排(110片)",
+    "spec": "160g*110片/箱",
+    "unit": "箱",
+    "expected_sku": "SK260508000036",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D10",
+    "original_name": "馋兜儿水煮千层",
+    "spec": "2.5kg*6袋/箱",
+    "unit": "箱",
+    "expected_sku": "SK260430000214",
+    "expected_unit_type": "大单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D11",
+    "original_name": "馋兜儿水煮千层",
+    "spec": "袋",
+    "unit": "袋",
+    "expected_sku": "SK260430000205",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D12",
+    "original_name": "御思源纯羊肉串",
+    "spec": "箱",
+    "unit": "箱",
+    "expected_sku": "SK260428000294",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D13",
+    "original_name": "御思源纯牛肉串",
+    "spec": "箱",
+    "unit": "箱",
+    "expected_sku": "SK260428000293",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D14",
+    "original_name": "源之香墨斗鱼香肠",
+    "spec": "箱",
+    "unit": "箱",
+    "expected_sku": "SK260427000447",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D15",
+    "original_name": "源之香飞鱼卵香肠",
+    "spec": "箱",
+    "unit": "箱",
+    "expected_sku": "SK260427000444",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D16",
+    "original_name": "众享汇调味法式羊排",
+    "spec": "2.5kg*4袋/件",
+    "unit": "件",
+    "expected_sku": "SK250923000371",
+    "expected_unit_type": "大单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D17",
+    "original_name": "众享汇调味法式羊排",
+    "spec": "2.5kg/袋",
+    "unit": "袋",
+    "expected_sku": "SK250923000370",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D18",
+    "original_name": "咀留香香草牛排",
+    "spec": "箱",
+    "unit": "箱",
+    "expected_sku": "SK260412000030",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D19",
+    "original_name": "咀留香黑椒牛柳",
+    "spec": "箱",
+    "unit": "箱",
+    "expected_sku": "SK260412000029",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  },
+  {
+    "item_id": "D20",
+    "original_name": "咀留香番茄牛排",
+    "spec": "箱",
+    "unit": "箱",
+    "expected_sku": "SK260412000028",
+    "expected_unit_type": "小单位",
+    "shipper_id": "HZ2024061300001",
+    "annotation_status": "pending"
+  }
+]

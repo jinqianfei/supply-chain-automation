@@ -1,0 +1,77 @@
+{
+  "evaluation_date": "2026-06-02",
+  "skill_version": "v5.5",
+  "optimization_changes": {
+    "layer3_keyword_boost": "0.15 → 0.25",
+    "spec_exact_match_score": "0.95 → 1.0"
+  },
+  "comparison_v54_vs_v55": {
+    "store_match_accuracy": {"v5.4": 100.0, "v5.5": 100.0},
+    "sku_match_accuracy": {"v5.4": 100.0, "v5.5": 100.0},
+    "total_sku_tested": 609,
+    "high_confidence": {"v5.4": 594, "v5.5": 598},
+    "high_confidence_pct": {"v5.4": 97.5, "v5.5": 98.2},
+    "low_confidence": {"v5.4": 6, "v5.5": 2},
+    "low_confidence_pct": {"v5.4": 1.0, "v5.5": 0.3},
+    "unmatched": {"v5.4": 9, "v5.5": 9}
+  },
+  "improved_items": [
+    {
+      "name": "免浆巴沙鱼片",
+      "store": "鱼你幸福（深圳沙井京基百纳店/广西平果店等）",
+      "v5.4_confidence": 0.68,
+      "v5.5_confidence": 0.88,
+      "improvement": 0.20,
+      "reason": "Layer 3 包含关系加成提升"
+    },
+    {
+      "name": "免浆黑鱼片",
+      "store": "鱼你幸福（山东临沂店）",
+      "v5.4_confidence": 0.67,
+      "v5.5_confidence": 0.87,
+      "improvement": 0.20,
+      "reason": "Layer 3 包含关系加成提升"
+    },
+    {
+      "name": "冻品—鱼你幸福猪肉片（1KG*12包/箱）",
+      "store": "鱼你幸福（广西平果店）",
+      "v5.4_confidence": 0.69,
+      "v5.5_confidence": 0.74,
+      "improvement": 0.05,
+      "reason": "Layer 3 包含关系加成提升"
+    }
+  ],
+  "not_improved_low_confidence": [
+    {
+      "name": "鱼你幸福青花椒酱料（新款）—原椒麻酱料",
+      "store": "鱼你幸福（深圳沙井店/太原店）",
+      "confidence": 0.69,
+      "reason": "Layer 2 匹配，不受 Layer 3 加成影响"
+    },
+    {
+      "name": "鱼你幸福开背烤鱼（冻品）",
+      "store": "鱼你幸福（山东临沂店）",
+      "confidence": 0.68,
+      "reason": "Layer 2 匹配，不受 Layer 3 加成影响"
+    }
+  ],
+  "unmatched_items": [
+    {"name": "鱼你幸福金汤酱料（箱装款）", "store": "鱼你幸福（广西平果店）"},
+    {"name": "鱼你幸福香辣酱料（箱装款）", "store": "鱼你幸福（广西平果店）"},
+    {"name": "（新） 原味腌料", "store": "宁德蕉城五里亭店"},
+    {"name": "香酥鸡排", "store": "2167海南儋州店"},
+    {"name": "香酥鸡排", "store": "宁德蕉城五里亭店"},
+    {"name": "香酥鸡排", "store": "1702宽城万达店"},
+    {"name": "香酥鸡排", "store": "1598建设文明小区店"},
+    {"name": "（新） 原味腌料", "store": "七台河市学府华庭店"}
+  ],
+  "order_file_details": [
+    {"file": "广州仓报单明细_16", "stores": 3, "items": 10, "high_v54": 6, "high_v55": 8, "low_v54": 2, "low_v55": 0, "unmatched": 2},
+    {"file": "华鼎_郑州仓报单明细_21", "stores": 2, "items": 14, "high_v54": 9, "high_v55": 11, "low_v54": 2, "low_v55": 0, "unmatched": 3},
+    {"file": "小江溪_长治万达店", "stores": 1, "items": 5, "high_v54": 5, "high_v55": 5, "low_v54": 0, "low_v55": 0, "unmatched": 0},
+    {"file": "配送明细表_26", "stores": 19, "items": 481, "high_v54": 481, "high_v55": 481, "low_v54": 0, "low_v55": 0, "unmatched": 0},
+    {"file": "华鼎下单5.29", "stores": 2, "items": 14, "high_v54": 14, "high_v55": 14, "low_v54": 0, "low_v55": 0, "unmatched": 0},
+    {"file": "华鼎出库单20260529", "stores": 12, "items": 74, "high_v54": 68, "high_v55": 68, "low_v54": 2, "low_v55": 2, "unmatched": 4},
+    {"file": "天津仓订单", "stores": 2, "items": 11, "high_v54": 11, "high_v55": 11, "low_v54": 0, "low_v55": 0, "unmatched": 0}
+  ]
+}
