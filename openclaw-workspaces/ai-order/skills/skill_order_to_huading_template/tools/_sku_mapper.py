@@ -842,7 +842,7 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
         if best_row is not None:
             ts, ns, ss, kb, _ = scored[0]  # sorted 后的第一个 = 最高分
             if need_confirm:
-                if ts >= 0.6:
+                if ts >= 0.6 or ns >= 0.7:
                     return _build_with_candidates(
                         tied_rows, confidence=round(ts, 2),
                         original_product_name=product_name,
@@ -884,7 +884,7 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
         if best_row is not None:
             ts, ns, ss, kb, _ = scored[0]
             if need_confirm:
-                if ts >= 0.7:
+                if ts >= 0.7 or ns >= 0.7:
                     return _build_with_candidates(
                         tied_rows, confidence=min(0.85, round(ts, 2)),
                         original_product_name=product_name,
@@ -932,7 +932,7 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
                 kb = max(kb, 0.2)
                 ts = min(0.79, ts + kb * 0.0)  # 公式已含 kb, 这里只补一点
             if need_confirm:
-                if ts >= 0.6:
+                if ts >= 0.6 or ns >= 0.7:
                     return _build_with_candidates(
                         tied_rows, confidence=min(0.88, round(ts, 2)),
                         original_product_name=product_name,
