@@ -834,9 +834,11 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
                                            order_spec=order_spec, db_spec=r[5] or "",
                                            layer="L2")
                 scored.append((ts, ns, ss, kb, r))
+            # 排序后取 best (v5.14.0: 排序后用 sorted[0] 拿 ts, 不是 scored[0])
+            scored.sort(key=lambda x: x[0], reverse=True)
             best_row, need_confirm, tied_rows = _select_unique_best(scored)
             if best_row is not None:
-                ts, ns, ss, kb, _ = scored[0]  # 取排序后最高的分数
+                ts, ns, ss, kb, _ = scored[0]  # sorted 后的第一个 = 最高分
                 if need_confirm:
                     return _build_with_candidates(
                         tied_rows, confidence=round(ts, 2),
@@ -873,6 +875,7 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
                                    layer="L25")
         scored.append((ts, ns, ss, kb, r))
     if scored:
+        scored.sort(key=lambda x: x[0], reverse=True)
         best_row, need_confirm, tied_rows = _select_unique_best(scored)
         if best_row is not None:
             ts, ns, ss, kb, _ = scored[0]
@@ -914,6 +917,7 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
             all_matches.append((ts, ns, ss, kb, r))
 
     if all_matches:
+        all_matches.sort(key=lambda x: x[0], reverse=True)
         best_row, need_confirm, tied_rows = _select_unique_best(all_matches)
         if best_row is not None:
             ts, ns, ss, kb, _ = all_matches[0]
