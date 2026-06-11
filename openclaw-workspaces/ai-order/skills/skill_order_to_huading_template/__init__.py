@@ -2331,6 +2331,50 @@ class OrderToHuadingTemplate:
                 total_items = sum(len(r["sku_results"]) + len(r["unmatched_items"]) for r in all_store_results)
                 total_unmatched = sum(len(r["unmatched_items"]) for r in all_store_results)
                 has_issues = total_unmatched > 0 or review_data["summary"]["alert_count"] > 0
+                # 自学习事件：SKU 被用户纠正
+                if _HAS_EVENT_BUS:
+                    try:
+                        _corrected_items = []
+                        for _update in confirmed_sku.get("updates", []):
+                            _corrected_items.append({
+                                "seq": _update.get("seq", 0),
+                                "original_name": _update.get("product_name", ""),
+                                "user_corrected_to": {
+                                    "sku_code": _update.get("sku_code", ""),
+                                    "sku_name": _update.get("sku_name", ""),
+                                },
+                                "match_layer": "user_manual",
+                                "match_score": 1.0,
+                            })
+                        EventBus.emit("sku_corrected", {
+                            "session_id": order_session_id,
+                            "timestamp": time.time(),
+                            "items": _corrected_items,
+                        })
+                    except Exception as _e:
+                        print(f"[WARN] emit sku_corrected failed: {_e}", flush=True)
+            elif confirmed_sku is True:
+                # 自学习事件：SKU 被用户确认（无修改）
+                if _HAS_EVENT_BUS:
+                    try:
+                        _confirmed_items = []
+                        for _sr in all_store_results:
+                            for _sku in _sr.get("sku_results", []):
+                                _confirmed_items.append({
+                                    "seq": _sku.get("seq", 0),
+                                    "sku_code": _sku.get("sku_code", ""),
+                                    "sku_name": _sku.get("sku_name", ""),
+                                    "match_layer": _sku.get("match_method", ""),
+                                    "match_score": float(_sku.get("confidence", 0) or 0),
+                                    "confidence": float(_sku.get("confidence", 0) or 0),
+                                })
+                        EventBus.emit("sku_confirmed", {
+                            "session_id": order_session_id,
+                            "timestamp": time.time(),
+                            "items": _confirmed_items,
+                        })
+                    except Exception as _e:
+                        print(f"[WARN] emit sku_confirmed failed: {_e}", flush=True)
 
             # ========== 生成合并模板（所有门店写入同一个sheet）==========
             object.__getattribute__(self, '_generate_multi_store_template')(order_data, all_store_results, output_file)
