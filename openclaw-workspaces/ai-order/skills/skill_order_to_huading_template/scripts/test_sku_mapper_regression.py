@@ -319,6 +319,7 @@ def main():
         except Exception as e:
             print(f"\n❌ 端到端测试异常: {e}")
             traceback.print_exc()
+            global FAIL_COUNT
             FAIL_COUNT += 1
 
     # 汇总
