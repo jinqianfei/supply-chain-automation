@@ -2268,12 +2268,20 @@ class OrderToHuadingTemplate:
 
             # ========== v5.14.0 audit: 应用用户 SKU 修正 ==========
             if isinstance(confirmed_sku, dict) and "updates" in confirmed_sku:
+                _applied_updates = []
+                _failed_updates = []
                 for update in confirmed_sku["updates"]:
                     store_key = update.get("store_key", "")
                     seq = update.get("seq", 0)
                     new_sku_code = update.get("sku_code", "")
                     if not store_key or not seq or not new_sku_code:
+                        _failed_updates.append({
+                            "seq": seq, "store_key": store_key,
+                            "reason": "missing_required_field",
+                            "detail": f"store_key={store_key}, seq={seq}, sku_code={new_sku_code}"
+                        })
                         continue
+                    _update_found = False
                     for sr in all_store_results:
                         if sr.get("store_name") != store_key and sr.get("store_info", {}).get("_store_key") != store_key:
                             continue
@@ -2282,6 +2290,7 @@ class OrderToHuadingTemplate:
                             if ui.get("seq") == seq:
                                 # 将未匹配项移入 sku_results
                                 sr["unmatched_items"].pop(ui_idx)
+                                # v5.15.1 fix: 补齐 seq/spec/remark/product_spec，避免模板错行
                                 sr["sku_results"].append({
                                     "sku_code": new_sku_code,
                                     "sku_name": update.get("sku_name", ""),
@@ -2291,8 +2300,19 @@ class OrderToHuadingTemplate:
                                     "product_name": ui.get("product_name", ""),
                                     "match_method": "用户手动选择",
                                     "confidence": 1.0,
+                                    "seq": ui.get("seq", seq),
+                                    "spec": ui.get("spec", ""),
+                                    "product_spec": ui.get("spec", ""),
+                                    "remark": ui.get("remark", ""),
+                                    "original_product_name": ui.get("product_name", ""),
                                 })
+                                # v5.15.1 fix: 按 seq 重排 sku_results，保持原订单顺序
+                                sr["sku_results"].sort(key=lambda x: x.get("seq", 0))
+                                _applied_updates.append({"seq": seq, "sku_code": new_sku_code, "action": "fill_unmatched"})
+                                _update_found = True
                                 break
+                        if _update_found:
+                            break
                         # 检查已匹配项更新
                         for sku in sr.get("sku_results", []):
                             if sku.get("seq") == seq:
@@ -2305,7 +2325,26 @@ class OrderToHuadingTemplate:
                                 if update.get("quantity") is not None:
                                     sku["quantity"] = update["quantity"]
                                 sku["match_method"] = "用户手动修正"
+                                _applied_updates.append({"seq": seq, "sku_code": new_sku_code, "action": "update_existing"})
+                                _update_found = True
                                 break
+                    if not _update_found:
+                        _failed_updates.append({
+                            "seq": seq, "store_key": store_key,
+                            "reason": "store_key_or_seq_not_found",
+                            "detail": f"store_key={store_key}, seq={seq} 未找到匹配商品"
+                        })
+                # v5.15.1 fix: 如果有失败的 update，返回提示让用户知道哪些没生效
+                if _failed_updates:
+                    return {
+                        "success": False,
+                        "need_sku_confirm": True,
+                        "failed_updates": _failed_updates,
+                        "applied_updates": _applied_updates,
+                        "message": f"有 {len(_failed_updates)} 条修正未生效：{'; '.join(f\"seq={f['seq']}({f['reason']})\" for f in _failed_updates)}",
+                        "all_store_results": all_store_results,
+                        "review_data": review_data,
+                    }
                 # 重新计算 unmatched
                 all_unmatched = []
                 total_unmatched = 0
