@@ -757,18 +757,37 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
             result["need_confirm"] = True
         return result
 
-    # Layer 1: 精确匹配（v5.13.2：多候选时返回 candidates 让用户选）
+    # Layer 1: 精确匹配（v5.14.0：多候选时按 order_unit 选, 唯一命中不返 candidates）
     exact_matches = [r for r in all_skus if r[1] == product_name or r[6] == product_name]
     if exact_matches:
-        r = exact_matches[0]
-        result = _build_result(r, confidence=0.95, original_product_name=product_name)
-        result["match_method"] = "Layer 1 精确匹配"
-        if len(exact_matches) > 1:
-            result["candidates"] = [_build_result(m, confidence=0.95) for m in exact_matches]
-            result["need_confirm"] = True
-        return result
+        # 1. 单候选 → 直接返回
+        if len(exact_matches) == 1:
+            r = exact_matches[0]
+            result = _build_result(r, confidence=0.95, original_product_name=product_name)
+            result["match_method"] = "Layer 1 精确匹配"
+            return result
+        # 2. 多候选 → 按 order_unit 选
+        if unit:
+            unit_matches = [m for m in exact_matches if m[2] == unit]
+            if len(unit_matches) == 1:
+                r = unit_matches[0]
+                result = _build_result(r, confidence=0.95, original_product_name=product_name)
+                result["match_method"] = f"Layer 1 精确匹配 (单位命中: {unit})"
+                return result
+            elif len(unit_matches) > 1:
+                # 多候选同 unit, 返回 candidates
+                return _build_with_candidates(
+                    unit_matches, confidence=0.95,
+                    original_product_name=product_name,
+                    match_method=f"Layer 1 精确匹配 (多 SKU 同单位: {unit})")
+            # else: order_unit 没匹配到任何 SKU, fallthrough 到 "无 order_unit" 逻辑
+        # 3. 无 order_unit 或 unit 没匹配 → 返回 candidates
+        return _build_with_candidates(
+            exact_matches, confidence=0.95,
+            original_product_name=product_name,
+            match_method="Layer 1 精确匹配 (多候选待选)")
 
-    # Layer 1b: 清洗后精确匹配（v5.13.2：多候选时返回 candidates 让用户选）
+    # Layer 1b: 清洗后精确匹配（v5.14.0：多候选时按 order_unit 选, 唯一命中不返 candidates）
     if clean_name != product_name:
         clean_matches = [r for r in all_skus if r[1] == clean_name or r[6] == clean_name]
         if clean_matches:
@@ -776,13 +795,30 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
                 spec_candidates = [r for r in clean_matches if _spec_match_score(order_spec, r[5] or "") >= 0.5]
                 if spec_candidates:
                     clean_matches = spec_candidates
-            r = clean_matches[0]
-            result = _build_result(r, confidence=0.93, original_product_name=product_name)
-            result["match_method"] = "Layer 1b 精确匹配（去除规格后）"
-            if len(clean_matches) > 1:
-                result["candidates"] = [_build_result(m, confidence=0.93) for m in clean_matches]
-                result["need_confirm"] = True
-            return result
+            # 1. 单候选 → 直接返回
+            if len(clean_matches) == 1:
+                r = clean_matches[0]
+                result = _build_result(r, confidence=0.93, original_product_name=product_name)
+                result["match_method"] = "Layer 1b 精确匹配（去除规格后）"
+                return result
+            # 2. 多候选 → 按 order_unit 选
+            if unit:
+                unit_matches = [m for m in clean_matches if m[2] == unit]
+                if len(unit_matches) == 1:
+                    r = unit_matches[0]
+                    result = _build_result(r, confidence=0.93, original_product_name=product_name)
+                    result["match_method"] = f"Layer 1b 精确匹配 (单位命中: {unit})"
+                    return result
+                elif len(unit_matches) > 1:
+                    return _build_with_candidates(
+                        unit_matches, confidence=0.93,
+                        original_product_name=product_name,
+                        match_method=f"Layer 1b 精确匹配 (多 SKU 同单位: {unit})")
+            # 3. 无 order_unit 或 unit 没匹配 → 返回 candidates
+            return _build_with_candidates(
+                clean_matches, confidence=0.93,
+                original_product_name=product_name,
+                match_method="Layer 1b 精确匹配 (多候选待选)")
 
     # Layer 2: 模糊匹配
     if clean_name != product_name:
