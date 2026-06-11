@@ -161,8 +161,6 @@ def match_store(store_name: str, customer_company: str = None,
                         len(store_name) < 3)
 
     # 【v5.15.0】有手机号时匹配，增加门店名校验
-    # v5.15.1 fix: 手机号命中但门店名差异大时，保留候选以便合并到最终结果
-    _phone_candidate = None
     if phone:
         phone_result = _find_by_phone(phone, db_config)
         if phone_result:
@@ -196,10 +194,7 @@ def match_store(store_name: str, customer_company: str = None,
                                                  f"{phone}，{sim:.0%}", db_config)
                                             for sim, s in scored if sim >= 0.5]
                     return result
-                # else: 全部 < 0.6，不信任手机号，保留候选供后续合并
-                _phone_candidate = _build_store_result(best_store, "phone_exact_low_conf",
-                    f"手机号匹配但门店名差异大（{phone}，{best_sim:.0%}）", db_config)
-                _phone_candidate["candidate_source"] = "phone_exact"
+                # else: 全部 < 0.6，不信任手机号，继续往下
             else:
                 # 唯一命中 → 也要做门店名校验
                 sim = SequenceMatcher(None, store_name, phone_result["store_name"]).ratio()
@@ -219,10 +214,7 @@ def match_store(store_name: str, customer_company: str = None,
                                                  f"手机号匹配+门店名待确认（{phone}，{sim:.0%}）", db_config)
                     result["need_confirm"] = True
                     return result
-                # else: < 0.6，不信任手机号，保留候选供后续合并
-                _phone_candidate = _build_store_result(phone_result, "phone_exact_low_conf",
-                    f"手机号匹配但门店名差异大（{phone}，{sim:.0%}）", db_config)
-                _phone_candidate["candidate_source"] = "phone_exact"
+                # else: < 0.6，不信任手机号，继续往下
 
         # 手机号没匹配到或门店名差异太大，且store_name也无效时，尝试地址关键词
         if _is_invalid_name and address:
