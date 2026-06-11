@@ -821,40 +821,42 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
                 match_method="Layer 1b 精确匹配 (多候选待选)")
 
     # Layer 2: 模糊匹配（v5.14.0：用 _compute_match_score + _select_unique_best）
-    if clean_name != product_name:
-        candidates = cache.find_by_name(clean_name)
-        if candidates:
-            scored = []
-            for r in candidates:
-                ns = SequenceMatcher(None, clean_name, r[1]).ratio()
-                ss = _spec_match_score(order_spec, r[5] or "") if order_spec else 0.5
-                kb = 0.0  # Layer 2 不算 keyword_boost
-                ts = _compute_match_score(ns, ss, kb,
-                                           order_unit=unit, sku_unit=r[2],
-                                           order_spec=order_spec, db_spec=r[5] or "",
-                                           layer="L2")
-                scored.append((ts, ns, ss, kb, r))
-            # 排序后取 best (v5.14.0: 排序后用 sorted[0] 拿 ts, 不是 scored[0])
-            scored.sort(key=lambda x: x[0], reverse=True)
-            best_row, need_confirm, tied_rows = _select_unique_best(scored)
-            if best_row is not None:
-                ts, ns, ss, kb, _ = scored[0]  # sorted 后的第一个 = 最高分
-                if need_confirm:
-                    return _build_with_candidates(
-                        tied_rows, confidence=round(ts, 2),
-                        original_product_name=product_name,
-                        match_method=f"Layer 2 模糊匹配 (多候选并列,名称{int(ns*100)}%+规格{int(ss*100)}%)")
-                else:
-                    # 唯一命中,按阈值判定
-                    if ts >= 0.8:
-                        result = _build_result(best_row, confidence=round(ts, 2), original_product_name=product_name)
-                        result["match_method"] = f"Layer 2 模糊匹配(名称{int(ns*100)}%+规格{int(ss*100)}%+单位加成)"
-                        return result
-                    elif ts >= 0.6:
-                        result = _build_result(best_row, confidence=round(ts, 2), original_product_name=product_name)
-                        result["match_method"] = f"Layer 2 模糊匹配(需确认)名称{int(ns*100)}%+规格{int(ss*100)}%+单位加成)"
-                        result["need_confirm"] = True
-                        return result
+    # 取消 `if clean_name != product_name` 限制 (v5.14.0 修复)
+    # 原限制导致 clean_name=果糖,product_name=果糖时 Layer 2 跳过,但 DB 里 SKU 叫"果糖/新"
+    # 这种 "名字部分包含" 场景必须走 Layer 2 才能匹配
+    candidates = cache.find_by_name(clean_name)
+    if candidates:
+        scored = []
+        for r in candidates:
+            ns = SequenceMatcher(None, clean_name, r[1]).ratio()
+            ss = _spec_match_score(order_spec, r[5] or "") if order_spec else 0.5
+            kb = 0.0  # Layer 2 不算 keyword_boost
+            ts = _compute_match_score(ns, ss, kb,
+                                       order_unit=unit, sku_unit=r[2],
+                                       order_spec=order_spec, db_spec=r[5] or "",
+                                       layer="L2")
+            scored.append((ts, ns, ss, kb, r))
+        # 排序后取 best (v5.14.0: 排序后用 sorted[0] 拿 ts, 不是 scored[0])
+        scored.sort(key=lambda x: x[0], reverse=True)
+        best_row, need_confirm, tied_rows = _select_unique_best(scored)
+        if best_row is not None:
+            ts, ns, ss, kb, _ = scored[0]  # sorted 后的第一个 = 最高分
+            if need_confirm:
+                return _build_with_candidates(
+                    tied_rows, confidence=round(ts, 2),
+                    original_product_name=product_name,
+                    match_method=f"Layer 2 模糊匹配 (多候选并列,名称{int(ns*100)}%+规格{int(ss*100)}%)")
+            else:
+                # 唯一命中,按阈值判定
+                if ts >= 0.8:
+                    result = _build_result(best_row, confidence=round(ts, 2), original_product_name=product_name)
+                    result["match_method"] = f"Layer 2 模糊匹配(名称{int(ns*100)}%+规格{int(ss*100)}%+单位加成)"
+                    return result
+                elif ts >= 0.6:
+                    result = _build_result(best_row, confidence=round(ts, 2), original_product_name=product_name)
+                    result["match_method"] = f"Layer 2 模糊匹配(需确认)名称{int(ns*100)}%+规格{int(ss*100)}%+单位加成)"
+                    result["need_confirm"] = True
+                    return result
 
     # Layer 2.5: 全量相似度匹配(内存)（v5.14.0：用新公式）
     scored = []
