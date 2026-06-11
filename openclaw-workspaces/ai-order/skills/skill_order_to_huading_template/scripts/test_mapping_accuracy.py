@@ -349,6 +349,8 @@ def test_warehouse_mapping(db_config):
 # ===================== 主函数 =====================
 
 def main():
+    global PASS_COUNT, FAIL_COUNT
+
     print("=" * 60)
     print("映射准确率回归测试")
     print("=" * 60)
