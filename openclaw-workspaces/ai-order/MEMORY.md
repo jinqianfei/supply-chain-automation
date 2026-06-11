@@ -2,7 +2,7 @@
 
 ## 最新Skill版本
 
-**当前活跃版本**: skill_order_to_huading_template **v5.15.0**（2026-06-11 — 补齐自学习模块6个缺失EventBus.emit,学习飞轮从40%→100%事件覆盖）
+**当前活跃版本**: skill_order_to_huading_template **v5.15.1**（2026-06-11 — P1审核报告修复：补SKU时保留seq+按序重排、update失败显式报错、字段兼容输出phone/address）
 
 **路径**: `/Users/jinqianfei/openclaw-workspaces/ai-order/skills/skill_order_to_huading_template/`
 

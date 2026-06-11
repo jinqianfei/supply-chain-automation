@@ -15,11 +15,13 @@ import os
 import sys
 import datetime
 
-# 添加项目根目录到 path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 添加 skill 根目录到 path
+_SKILL_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills", "skill_order_to_huading_template")
+if _SKILL_ROOT not in sys.path:
+    sys.path.insert(0, _SKILL_ROOT)
 
 try:
-    from skills.skill_order_to_huading_template.db.connection import get_default_db_config
+    from db.connection import get_default_db_config
     import psycopg2
 except ImportError as e:
     print(f"[ERROR] Import failed: {e}")

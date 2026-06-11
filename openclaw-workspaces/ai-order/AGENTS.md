@@ -12,17 +12,18 @@
 - `output/` - 输出结果
 - `skills/` - 技能配置
 
-## ⚠️ 当前活跃Skill版本：v5.15.0（唯一版本）
+## ⚠️ 当前活跃Skill版本：v5.15.1（唯一版本）
 
-### skill_order_to_huading_template v5.15.0
+### skill_order_to_huading_template v5.15.1
 **路径**: `skills/skill_order_to_huading_template/`
 
-**版本标识**: v5.15.0（2026-06-11）—— 所有订单处理都使用此版本，不再使用旧版本。
+**版本标识**: v5.15.1（2026-06-11）—— 所有订单处理都使用此版本，不再使用旧版本。
 
-**核心改进（v5.15.0）**：
-- 补齐自学习模块 6 个缺失 EventBus.emit（store_corrected/sku_confirm_needed/sku_confirmed/sku_corrected/order_cancelled/alert_raised）
-- 学习飞轮从 40% 事件覆盖率 → 100%
-- 保留 v5.14.0 全部改进：选 SKU 时考虑 order_unit+规格，单位与 SKU 绑定
+**核心改进（v5.15.1）**：
+- P1-1: 用户补未匹配 SKU 后保留 seq 并按序重排（避免模板错行）
+- P1-2: SKU 修正 update 失败显式报错（不再静默失效）
+- P2: 字段标准化层同时输出 phone/address 兼容字段
+- 保留 v5.15.0 全部改进：自学习模块 6 个缺失 EventBus.emit 补齐，学习飞轮 100% 事件覆盖
 
 ### 功能
 - 支持多种输入格式（Excel/图片/PDF/Word/文字）
@@ -60,9 +61,9 @@ User: agenthub
 
 ## 版本规则
 
-1. 所有订单处理使用 **v5.15.0**
-2. 迭代和更新只针对 **v5.15.0**
-3. 不使用 v5.0-v5.14 等旧版本
+1. 所有订单处理使用 **v5.15.1**
+2. 迭代和更新只针对 **v5.15.1**
+3. 不使用 v5.0-v5.15.0 等旧版本
 ---
 
 ## 📋 记忆系统

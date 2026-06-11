@@ -1,0 +1,15 @@
+# AI Order 定时任务配置
+# 服务器上用: crontab cron_tasks.txt
+# 本地 Mac 用: launchd plist（见 launchd/ 目录）
+
+# 每 3 分钟 auto git commit（本地 git 自动保存改动）
+*/3 * * * * cd ~/openclaw-workspaces/ai-order && git add -A && git commit -m "auto" --quiet 2>/dev/null
+
+# 每天 10:00 别名表汇总（独立推送，不和日报一起）
+0 10 * * * cd ~/openclaw-workspaces/ai-order && python3 scripts/daily_alias_summary.py >> /tmp/alias_summary.log 2>&1
+
+# 每天 17:00 日报
+0 17 * * * cd ~/openclaw-workspaces/ai-order && bash scripts/daily_wrap.sh >> /tmp/daily_wrap.log 2>&1
+
+# 每天 09:00 断档检测
+0 9 * * * cd ~/openclaw-workspaces/ai-order && bash scripts/check_continuity.sh >> /tmp/check_continuity.log 2>&1

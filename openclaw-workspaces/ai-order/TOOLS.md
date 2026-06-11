@@ -2,7 +2,7 @@
 
 ## Skill: skill_order_to_huading_template
 
-**版本**: v5.15.0（2026-06-11）
+**版本**: v5.15.1（2026-06-11）
 
 ### 使用方式
 
@@ -79,7 +79,7 @@ skill.execute() 返回 need_ocr=True
 | Database | **neo** |
 | User | agenthub |
 
-### 数据库表（v5.15.0）
+### 数据库表（v5.15.1）
 
 | 表名 | 货主ID字段 | 用途 |
 |------|-----------|------|

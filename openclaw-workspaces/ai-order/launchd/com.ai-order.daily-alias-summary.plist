@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ai-order.daily-alias-summary</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/jinqianfei/openclaw-workspaces/ai-order/scripts/daily_alias_summary.py</string>
+    </array>
+
+    <!-- 每天 10:00 触发（独立于日报） -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>10</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- 标准输出/错误 → 日志文件 -->
+    <key>StandardOutPath</key>
+    <string>/tmp/ai-order.daily-alias-summary.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/ai-order.daily-alias-summary.err.log</string>
+
+    <!-- 工作目录 -->
+    <key>WorkingDirectory</key>
+    <string>/Users/jinqianfei/openclaw-workspaces/ai-order</string>
+
+    <!-- 环境变量（从 .env 加载 DB 配置） -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+</dict>
+</plist>
