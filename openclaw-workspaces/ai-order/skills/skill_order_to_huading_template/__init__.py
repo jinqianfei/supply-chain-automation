@@ -1936,8 +1936,8 @@ class OrderToHuadingTemplate:
                             store_name=store_name_for_match,
                             customer_company=store_data.get("shipper_name", ""),
                             db_config=self.db_config,
-                            phone=store_data.get("phone"),
-                            address=store_data.get("store_address"),
+                            phone=store_data.get("phone") or store_data.get("store_phone"),
+                            address=store_data.get("address") or store_data.get("store_address"),
                             contact_person=store_data.get("contact_person"),
                         )
 
@@ -2084,8 +2084,8 @@ class OrderToHuadingTemplate:
                     store_key = list(stores_dict.keys())[0]
                     store_data = stores_dict[store_key]
                     store_name_val = store_data.get("store_name", store_key)
-                    phone_val = store_data.get("phone")
-                    address_val = store_data.get("address")
+                    phone_val = store_data.get("phone") or store_data.get("store_phone")
+                    address_val = store_data.get("address") or store_data.get("store_address")
                     contact_val = store_data.get("contact_person")
                     shipper_name_val = store_data.get("shipper_name", "")
                 else:
@@ -2190,8 +2190,8 @@ class OrderToHuadingTemplate:
                 output_file = os.path.join(self.output_dir, f"华鼎出库单_{order_no_safe}.xlsx")
 
             # ========== 统计汇总 ==========
-            total_items = sum(len(r["sku_results"]) for r in all_store_results)
             total_unmatched = sum(len(r["unmatched_items"]) for r in all_store_results)
+            total_items = sum(len(r["sku_results"]) + len(r["unmatched_items"]) for r in all_store_results)
             all_unmatched = []
             for r in all_store_results:
                 for it in r["unmatched_items"]:
@@ -2207,7 +2207,8 @@ class OrderToHuadingTemplate:
             has_issues = total_unmatched > 0 or review_data["summary"]["alert_count"] > 0
             store_names = ", ".join(r["store_name"] for r in all_store_results)
 
-            if not confirmed_sku:
+            # v5.14.0 audit: 即使 confirmed_sku=True, 有未匹配也不放行
+            if not confirmed_sku or (total_unmatched > 0 and not isinstance(confirmed_sku, dict)):
                 return {
                     "success": False,
                     "need_sku_confirm": True,
