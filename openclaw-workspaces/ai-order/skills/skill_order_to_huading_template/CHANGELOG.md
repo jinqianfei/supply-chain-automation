@@ -5,6 +5,20 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.13.3] - 2026-06-11
+
+### Fixed
+- **`_clean_product_name` 末尾孤立分隔符 bug（金姐反馈 - 沧州行别营店"果糖-"）**
+  - 问题：订单商品名 "果糖-"、"果糖_"、"-果糖" 这类带孤立分隔符的，清洗后仍保留符号
+  - 影响：Layer 1/1b 精确匹配失败 → 走 Layer 2 模糊匹配 → 名称相似度只有 66%（无 keyword_boost，因为 "果糖-" 不在 "果糖/新" 里）→ 综合分 0.6 < 0.7 阈值 → 整体未命中
+  - 修复：清洗函数末尾追加 `re.sub(r'[-_./\\,;:]+$', '', cleaned)` + `re.sub(r'^[-_./\\,;:]+', '', cleaned)`
+  - 修复后 "果糖-" → "果糖" → Layer 2 模糊匹配命中（66%名称+50%规格=0.6，需确认）
+
+### Why I Missed It
+- 之前只在 "_clean_product_name" docstring 里写了"保留连接符 -、-、_"
+- 没考虑到实际订单数据里 "-" 常作为"残留符号"出现（OCR 错误、人工输入漏字等）
+- 金姐反馈后才意识到：-作为分隔符（"D-X-H"）vs -作为孤立符号（"果糖-"）需要区别对待
+
 ## [5.13.2] - 2026-06-10
 
 ### Changed
