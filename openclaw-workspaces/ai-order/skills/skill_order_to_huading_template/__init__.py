@@ -394,7 +394,7 @@ def _get_download_url(output_file: str) -> str:
 class OrderToHuadingTemplate:
     """订单转华鼎出库单模板Skill"""
     
-    VERSION = "5.13.2"
+    VERSION = "5.14.0"
     
     # ========== AI调用约束（方案1：技术层面）==========
     # AI 只能调用这些公开接口，不得直接调用内部工具函数
@@ -2031,6 +2031,14 @@ class OrderToHuadingTemplate:
                                     "batch_pending": pending_count,
                                 })
 
+                    # 兼容旧调用方：补回首个 pending 门店的顶层字段
+                    first_pending = next((m for m in all_store_matches if m["status"] == "pending"), None)
+                    compat_fields = {}
+                    if first_pending:
+                        compat_fields["store_name_submitted"] = first_pending.get("store_name_submitted", "")
+                        compat_fields["matched_store"] = first_pending.get("matched_store", {})
+                        compat_fields["candidates"] = first_pending.get("candidates", [])
+
                     return {
                         "success": False,
                         "need_store_confirm": True,
@@ -2043,7 +2051,8 @@ class OrderToHuadingTemplate:
                         "failed_stores": failed_stores,
                         "confirmed_stores": confirmed_stores,
                         "order_data_cache": _order_cache_with_confirmations(order_data, confirmed_stores),
-                        "message": f"共 {len(all_store_matches)} 个门店：{confirmed_count} 已确认，{pending_count} 待确认，{failed_count} 失败。请确认所有门店后继续"
+                        "message": f"共 {len(all_store_matches)} 个门店：{confirmed_count} 已确认，{pending_count} 待确认，{failed_count} 失败。请确认所有门店后继续",
+                        **compat_fields,
                     }
 
                 # ── Phase B: 所有门店已确认 → 批量 SKU 匹配 ──
