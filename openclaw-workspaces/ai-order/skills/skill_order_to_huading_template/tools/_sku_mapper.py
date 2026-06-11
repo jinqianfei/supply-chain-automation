@@ -746,16 +746,33 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
     order_spec = _extract_spec_from_name(product_name)
     clean_name = _clean_product_name(product_name)
 
-    # Layer 0: 别名表（v5.13.2：多候选时返回 candidates 让用户选）
+    # Layer 0: 别名表（v5.15.1：多候选时按 order_unit 选，和 Layer 1 逻辑一致）
     if product_name in alias_groups:
         candidate_rows = alias_groups[product_name]
-        r = candidate_rows[0]
-        result = _build_result(r, confidence=0.98, original_product_name=product_name)
-        result["match_method"] = "Layer 0 别名表精确匹配"
-        if len(candidate_rows) > 1:
-            result["candidates"] = [_build_result(cr, confidence=0.98) for cr in candidate_rows]
-            result["need_confirm"] = True
-        return result
+        if len(candidate_rows) == 1:
+            r = candidate_rows[0]
+            result = _build_result(r, confidence=0.98, original_product_name=product_name)
+            result["match_method"] = "Layer 0 别名表精确匹配"
+            return result
+        else:
+            # 多候选 → 按 order_unit 选
+            if unit:
+                unit_matches = [m for m in candidate_rows if m[2] == unit]
+                if len(unit_matches) == 1:
+                    r = unit_matches[0]
+                    result = _build_result(r, confidence=0.98, original_product_name=product_name)
+                    result["match_method"] = f"Layer 0 别名表精确匹配 (单位命中: {unit})"
+                    return result
+                elif len(unit_matches) > 1:
+                    return _build_with_candidates(
+                        unit_matches, confidence=0.98,
+                        original_product_name=product_name,
+                        match_method=f"Layer 0 别名表精确匹配 (多 SKU 同单位: {unit})")
+            # 无 unit 或没匹配 → 返回 candidates
+            return _build_with_candidates(
+                candidate_rows, confidence=0.98,
+                original_product_name=product_name,
+                match_method="Layer 0 别名表精确匹配 (多候选待选)")
 
     # Layer 1: 精确匹配（v5.14.0：多候选时按 order_unit 选, 唯一命中不返 candidates）
     exact_matches = [r for r in all_skus if r[1] == product_name or r[6] == product_name]
