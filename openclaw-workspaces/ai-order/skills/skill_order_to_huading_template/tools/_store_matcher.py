@@ -380,6 +380,7 @@ def _build_store_result(store: dict, match_type: str, match_method: str, db_conf
     warehouse_name = store.get("warehouse", "") or store.get("warehouse_name", "")
     warehouse_code = ""
     if warehouse_name:
+        warehouse_code_error = None
         try:
             import psycopg2
             conn = psycopg2.connect(**db_config)
@@ -393,10 +394,10 @@ def _build_store_result(store: dict, match_type: str, match_method: str, db_conf
                 warehouse_code = row[0] or ""
             cur.close()
             conn.close()
-        except Exception:
-            pass
+        except Exception as e:
+            warehouse_code_error = str(e)
 
-    return {
+    result = {
         "store_code": store.get("store_code", ""),
         "store_name": store.get("store_name", ""),
         "owner_code": store.get("owner_code", ""),
@@ -409,6 +410,9 @@ def _build_store_result(store: dict, match_type: str, match_method: str, db_conf
         "match_type": match_type,
         "match_method": match_method,
     }
+    if warehouse_code_error:
+        result["warehouse_code_error"] = warehouse_code_error
+    return result
 
 
 # ========== 数据库操作（内联，避免相对导入问题）==========

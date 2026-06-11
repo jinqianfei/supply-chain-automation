@@ -2225,6 +2225,64 @@ class OrderToHuadingTemplate:
                     "message": "SKU映射结果需要确认，请检查映射对照表后继续生成模板",
                 }
 
+            # ========== v5.14.0 audit: 应用用户 SKU 修正 ==========
+            if isinstance(confirmed_sku, dict) and "updates" in confirmed_sku:
+                for update in confirmed_sku["updates"]:
+                    store_key = update.get("store_key", "")
+                    seq = update.get("seq", 0)
+                    new_sku_code = update.get("sku_code", "")
+                    if not store_key or not seq or not new_sku_code:
+                        continue
+                    for sr in all_store_results:
+                        if sr.get("store_name") != store_key and sr.get("store_info", {}).get("_store_key") != store_key:
+                            continue
+                        # 检查未匹配项是否有此 seq
+                        for ui_idx, ui in enumerate(sr.get("unmatched_items", [])):
+                            if ui.get("seq") == seq:
+                                # 将未匹配项移入 sku_results
+                                sr["unmatched_items"].pop(ui_idx)
+                                sr["sku_results"].append({
+                                    "sku_code": new_sku_code,
+                                    "sku_name": update.get("sku_name", ""),
+                                    "unit": update.get("unit", "件"),
+                                    "unit_type": update.get("unit_type", ""),
+                                    "quantity": ui.get("quantity", 1),
+                                    "product_name": ui.get("product_name", ""),
+                                    "match_method": "用户手动选择",
+                                    "confidence": 1.0,
+                                })
+                                break
+                        # 检查已匹配项更新
+                        for sku in sr.get("sku_results", []):
+                            if sku.get("seq") == seq:
+                                if new_sku_code:
+                                    sku["sku_code"] = new_sku_code
+                                if update.get("unit_type"):
+                                    sku["unit_type"] = update["unit_type"]
+                                if update.get("unit"):
+                                    sku["unit"] = update["unit"]
+                                if update.get("quantity") is not None:
+                                    sku["quantity"] = update["quantity"]
+                                sku["match_method"] = "用户手动修正"
+                                break
+                # 重新计算 unmatched
+                all_unmatched = []
+                total_unmatched = 0
+                for sr in all_store_results:
+                    all_unmatched.extend(sr.get("unmatched_items", []))
+                    total_unmatched += len(sr.get("unmatched_items", []))
+                # 如果仍有未匹配项且用户没有全部补齐，阻断生成
+                if total_unmatched > 0:
+                    return {
+                        "success": False,
+                        "need_sku_confirm": True,
+                        "message": f"仍有 {total_unmatched} 个未匹配SKU，请补齐后再继续生成模板",
+                        "unmatched_count": total_unmatched,
+                        "unmatched_items": all_unmatched,
+                        "all_store_results": all_store_results,
+                        "review_data": review_data,
+                    }
+
             # ========== 生成合并模板（所有门店写入同一个sheet）==========
             object.__getattribute__(self, '_generate_multi_store_template')(order_data, all_store_results, output_file)
 
@@ -2996,6 +3054,11 @@ class OrderToHuadingTemplate:
                 "unit_type": r["unit_type"],
                 "product_spec": r.get("product_spec", ""),
                 "match_method": r.get("match_method", ""),
+                # v5.14.0 audit: 透传审核信号，避免低置信度/多候选被洗白
+                "confidence": r.get("confidence", 1.0),
+                "need_confirm": r.get("need_confirm", False),
+                "candidates": r.get("candidates", []),
+                "original_product_name": r.get("original_product_name", ""),
             })
 
         return formatted_results, unmatched_items
@@ -3677,6 +3740,18 @@ class OrderToHuadingTemplate:
         )
         store_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
         store_font = Font(bold=True, color="000000", size=10)
+
+        # v5.14.0 audit: 多门店仓库编码强校验
+        missing_warehouse = []
+        for store_result in all_store_results:
+            si = store_result["store_info"]
+            if not si.get("warehouse_code", ""):
+                missing_warehouse.append(si.get("store_name", store_result.get("store_name", "未知门店")))
+        if missing_warehouse:
+            raise ValueError(
+                f"以下门店缺少仓库编码，无法生成模板：{', '.join(missing_warehouse)}。"
+                f"请检查仓库配置或确认门店匹配结果。"
+            )
 
         # 写表头
         for col_idx, field_name in enumerate(self.HUADING_FIELDS, start=1):

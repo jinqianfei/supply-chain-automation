@@ -207,12 +207,13 @@ def generate_from_template(template_path: str, store_info: dict,
         ws.cell(row=row_num, column=8, value=sku.get("unit_type", ""))
         # 是否垫付（N）
         ws.cell(row=row_num, column=14, value=defaults.get("是否垫付", "否"))
-        # 收货人（Z）
-        ws.cell(row=row_num, column=26, value=store_info.get("contact_person", ""))
-        # 联系电话（AA）
-        ws.cell(row=row_num, column=27, value=store_info.get("phone", ""))
-        # 收货地址（AB）
-        ws.cell(row=row_num, column=28, value=store_info.get("address", ""))
+        # 收货人/联系电话/收货地址 - 按 HUADING_FIELDS 动态定位列号
+        contact_col = HUADING_FIELDS.index("收货人") + 1
+        phone_col = HUADING_FIELDS.index("联系电话") + 1
+        address_col = HUADING_FIELDS.index("收货地址") + 1
+        ws.cell(row=row_num, column=contact_col, value=store_info.get("contact_person", ""))
+        ws.cell(row=row_num, column=phone_col, value=store_info.get("phone", ""))
+        ws.cell(row=row_num, column=address_col, value=store_info.get("address", ""))
         # 备注（V）- 保留原公式不变
         
         for col in range(1, 30):
