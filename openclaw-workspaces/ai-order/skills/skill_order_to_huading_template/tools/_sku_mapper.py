@@ -27,6 +27,39 @@ if _SKILL_ROOT not in sys.path:
 from db.connection import get_connection, get_default_db_config
 from db.table_names import SKU_TABLE, WAREHOUSE_TABLE, ALIAS_TABLE, STORE_TABLE, ACTIVE_STATUS, SKU_CACHE_LIMIT, SKU_MATCH_LIMIT
 
+try:
+    import yaml
+except ImportError:
+    yaml = None
+
+
+def _load_yaml_sku_aliases(owner_code: str) -> Dict[str, str]:
+    """
+    加载 yaml SKU 别名表（自学习模块自动维护）
+    
+    Returns:
+        {order_product_name: system_product_name}
+    """
+    if yaml is None:
+        return {}
+    yaml_path = os.path.join(_SKILL_ROOT, "field_mapping", "rules", "sku_aliases_auto.yaml")
+    if not os.path.exists(yaml_path):
+        return {}
+    try:
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        aliases = {}
+        for item in data.get("aliases", []):
+            if item.get("shipper_id") and item["shipper_id"] != owner_code:
+                continue  # 跳过其他货主的别名
+            order_name = item.get("order_product_name", "")
+            system_name = item.get("system_product_name", "")
+            if order_name and system_name:
+                aliases[order_name] = system_name
+        return aliases
+    except Exception:
+        return {}
+
 
 def _clean_product_name(name: str) -> str:
     """
