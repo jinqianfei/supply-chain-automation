@@ -207,6 +207,109 @@ def _has_core_word_match(clean_name: str, sku_name: str) -> bool:
     return False
 
 
+# ===================== v5.14.0 新增: 选 SKU 时的统一打分 + 唯一性判断 =====================
+
+
+def _compute_match_score(name_score: float, spec_score: float, keyword_boost: float,
+                          order_unit: str, sku_unit: str,
+                          order_spec: str, db_spec: str,
+                          layer: str) -> float:
+    """
+    v5.14.0 新增: 统一计算 SKU 匹配分数
+
+    加成:
+      - order_unit == sku_unit → +0.15 (单位精确命中)
+      - order_spec == db_spec → +0.10 (规格精确命中)
+
+    Args:
+        name_score: 名称相似度 (0-1)
+        spec_score: 规格匹配分 (0-1)
+        keyword_boost: 关键词加成 (0-0.25)
+        order_unit: 订单单位（如"桶""件""瓶"）
+        sku_unit: DB SKU 的 unit 字段
+        order_spec: 订单中的规格描述
+        db_spec: DB SKU 的 product_spec 字段
+        layer: 哪一层 ("L2" / "L25" / "L3")
+
+    Returns:
+        float: 综合分数, cap 在 1.0
+    """
+    # 基础权重 (按 layer 调)
+    weights = {
+        "L2":  {"name": 0.50, "spec": 0.20, "kb": 0.00},
+        "L25": {"name": 0.45, "spec": 0.20, "kb": 0.10},
+        "L3":  {"name": 0.45, "spec": 0.20, "kb": 0.10},
+    }
+    w = weights.get(layer, weights["L3"])
+    ts = (name_score * w["name"]
+          + spec_score * w["spec"]
+          + keyword_boost * w["kb"])
+
+    # 🆕 单位命中加成 (所有层通用, v5.14.0)
+    if order_unit and sku_unit and order_unit == sku_unit:
+        ts += 0.15
+
+    # 🆕 规格精确命中加成
+    if order_spec and db_spec and order_spec == db_spec:
+        ts += 0.10
+
+    return min(1.0, ts)
+
+
+def _select_unique_best(scored: list, threshold: float = 0.001) -> tuple:
+    """
+    v5.14.0 新增: 从打分结果中选唯一最高分候选
+
+    Args:
+        scored: list of (total_score, name_score, spec_score, kb, row) 元组
+        threshold: 判定"并列"的分数差阈值
+
+    Returns:
+        (best_row, need_confirm, candidates)
+        - best_row: 唯一最高分的 row
+        - need_confirm: True 表示有并列或多个候选
+        - candidates: 多个候选时返回所有 row
+    """
+    if not scored:
+        return (None, False, [])
+
+    sorted_scored = sorted(scored, key=lambda x: x[0], reverse=True)
+    best_score = sorted_scored[0][0]
+
+    # 找所有"近似最高分"的候选 (差<threshold)
+    tied = [s for s in sorted_scored if abs(s[0] - best_score) < threshold]
+
+    if len(tied) == 1:
+        # 唯一最高分
+        return (tied[0][-1], False, [])
+    else:
+        # 多个并列最高
+        return (tied[0][-1], True, [t[-1] for t in tied])
+
+
+def _build_with_candidates(rows: list, confidence: float,
+                            original_product_name: str = "",
+                            match_method: str = "") -> dict:
+    """
+    v5.14.0 新增: 构造多个候选结果 (复用 v5.13.2 的 candidates 机制)
+    """
+    if not rows:
+        return {
+            "matched": False, "confidence": 0.0, "sku_code": "",
+            "sku_name": "", "unit": "", "unit_type": "",
+            "conversion_ratio": 1.0, "product_spec": "",
+            "match_method": match_method or "未匹配",
+        }
+    r = rows[0]
+    result = _build_result(r, confidence=confidence, original_product_name=original_product_name)
+    result["match_method"] = match_method
+    if len(rows) > 1:
+        # 把所有 rows 都放进 candidates (rows[0] 也包进去, 跟 v5.13.2 一致)
+        result["candidates"] = [_build_result(rr, confidence=confidence) for rr in rows]
+        result["need_confirm"] = True
+    return result
+
+
 def _resolve_unit_type(rows: list, order_quantity: float = 1, order_unit: str = "") -> tuple:
     """
     根据订单单位精确匹配选择出库单位(v5.13.0)
