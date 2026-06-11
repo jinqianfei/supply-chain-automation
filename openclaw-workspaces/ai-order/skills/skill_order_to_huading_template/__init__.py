@@ -2341,7 +2341,7 @@ class OrderToHuadingTemplate:
                         "need_sku_confirm": True,
                         "failed_updates": _failed_updates,
                         "applied_updates": _applied_updates,
-                        "message": f"有 {len(_failed_updates)} 条修正未生效：{'; '.join(f\"seq={f['seq']}({f['reason']})\" for f in _failed_updates)}",
+                        "message": f"有 {len(_failed_updates)} 条修正未生效：{'; '.join('seq=' + str(f['seq']) + '(' + f['reason'] + ')' for f in _failed_updates)}",
                         "all_store_results": all_store_results,
                         "review_data": review_data,
                     }
