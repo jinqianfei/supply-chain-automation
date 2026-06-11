@@ -346,6 +346,106 @@ def test_warehouse_mapping(db_config):
             _record(False, f"{store_name[:20]} → 仓库", f"异常: {e}")
 
 
+# ===================== E: SKU 映射准确率 =====================
+
+def test_sku_mapping(db_config):
+    """SKU 映射准确率测试 — 使用 D set 盲测数据 (20 条带 GT)"""
+    _set_group("SKU映射")
+    print("\n[E] SKU 映射准确率 (D set 盲测)")
+    print("-" * 60)
+
+    import json
+    from tools._sku_mapper import map_sku_batch
+
+    # 加载 D set 测试数据
+    test_data_path = os.path.join(
+        SKILL_DIR, "..", "..", "docs", "test_data", "test_set_D_blind_test.json"
+    )
+    test_data_path = os.path.abspath(test_data_path)
+    if not os.path.exists(test_data_path):
+        _record(False, "SKU 映射", f"测试数据不存在: {test_data_path}")
+        return
+
+    with open(test_data_path, "r", encoding="utf-8") as f:
+        test_items = json.load(f)
+
+    if not test_items:
+        _record(False, "SKU 映射", "D set 无数据")
+        return
+
+    # 按 shipper_id 分组，批量调用 map_sku_batch
+    from collections import defaultdict
+    by_shipper = defaultdict(list)
+    for item in test_items:
+        by_shipper[item["shipper_id"]].append(item)
+
+    for shipper_id, items in by_shipper.items():
+        # 构造 map_sku_batch 输入
+        batch_items = []
+        for i, item in enumerate(items):
+            batch_items.append({
+                "product_name": item["original_name"],
+                "spec": item.get("spec", ""),
+                "unit": item.get("unit", "件"),
+                "quantity": 1,
+                "seq": i + 1,
+            })
+
+        try:
+            results, unmatched = map_sku_batch(shipper_id, batch_items, db_config)
+        except Exception as e:
+            for item in items:
+                _record(False, f"{item['item_id']} {item['original_name'][:15]}",
+                        f"map_sku_batch 异常: {e}")
+            continue
+
+        # 逐个比对 GT
+        result_map = {r.get("seq"): r for r in results} if results else {}
+
+        for i, item in enumerate(items):
+            seq = i + 1
+            r = result_map.get(seq)
+
+            item_id = item["item_id"]
+            name_short = item["original_name"][:20]
+            expected_sku = item["expected_sku"]
+            expected_unit_type = item.get("expected_unit_type", "")
+
+            if r is None or not r.get("matched"):
+                _record(False,
+                        f"{item_id} {name_short} → {expected_sku}",
+                        "未匹配")
+                # 单位类型也记为失败
+                _record(False,
+                        f"{item_id} {name_short} → {expected_unit_type}",
+                        "未匹配，无法验证单位类型")
+                continue
+
+            actual_sku = r.get("sku_code", "")
+            actual_unit_type = r.get("unit_type", "")
+
+            # SKU 编码是否正确
+            sku_ok = actual_sku == expected_sku
+            _record(sku_ok,
+                    f"{item_id} {name_short} → {expected_sku}",
+                    f"实际 sku={actual_sku}, conf={r.get('confidence', 0):.2f}, layer={r.get('match_method', '')[:25]}")
+
+            # 单位类型是否正确
+            if expected_unit_type:
+                type_ok = actual_unit_type == expected_unit_type
+                _record(type_ok,
+                        f"{item_id} {name_short} → {expected_unit_type}",
+                        f"实际 unit_type={actual_unit_type}")
+
+        # 未匹配的也算失败
+        if unmatched:
+            for u in unmatched:
+                name = u.get("product_name", "")[:20]
+                _record(False,
+                        f"未匹配: {name}",
+                        "在 unmatched 列表中")
+
+
 # ===================== 主函数 =====================
 
 def main():
@@ -387,6 +487,14 @@ def main():
         test_warehouse_mapping(db_config)
     except Exception as e:
         print(f"\n❌ 仓库映射测试异常: {e}")
+        traceback.print_exc()
+        FAIL_COUNT += 1
+
+    # 🆕 E: SKU 映射准确率 (v5.15.2 新增)
+    try:
+        test_sku_mapping(db_config)
+    except Exception as e:
+        print(f"\n❌ SKU 映射测试异常: {e}")
         traceback.print_exc()
         FAIL_COUNT += 1
 
