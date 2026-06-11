@@ -44,6 +44,7 @@ class EventAdapter:
             "output_file": event_data.get("output_file", ""),
             "alerts": json.dumps(event_data.get("alerts", []) or [], ensure_ascii=False),
             "data_source": "event_bus",
+            "submitted_by": event_data.get("submitted_by", ""),
         }
 
     @staticmethod

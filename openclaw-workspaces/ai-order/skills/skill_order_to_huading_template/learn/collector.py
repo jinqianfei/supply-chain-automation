@@ -249,7 +249,7 @@ class FeedbackCollector:
                     corrections, modifications,
                     processing_time_ms, skill_version,
                     owner_code, source_file, output_file, alerts,
-                    data_source
+                    data_source, submitted_by
                 ) VALUES (
                     %(session_id)s, %(order_type)s,
                     %(store_count)s, %(sku_count)s,
@@ -259,7 +259,7 @@ class FeedbackCollector:
                     %(corrections)s::jsonb, %(modifications)s::jsonb,
                     %(processing_time_ms)s, %(skill_version)s,
                     %(owner_code)s, %(source_file)s, %(output_file)s, %(alerts)s::jsonb,
-                    %(data_source)s
+                    %(data_source)s, %(submitted_by)s
                 )
                 RETURNING id
             """, record)
