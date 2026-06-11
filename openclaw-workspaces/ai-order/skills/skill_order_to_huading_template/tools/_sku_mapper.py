@@ -820,7 +820,7 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
                 original_product_name=product_name,
                 match_method="Layer 1b 精确匹配 (多候选待选)")
 
-    # Layer 2: 模糊匹配
+    # Layer 2: 模糊匹配（v5.14.0：用 _compute_match_score + _select_unique_best）
     if clean_name != product_name:
         candidates = cache.find_by_name(clean_name)
         if candidates:
@@ -828,22 +828,33 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
             for r in candidates:
                 ns = SequenceMatcher(None, clean_name, r[1]).ratio()
                 ss = _spec_match_score(order_spec, r[5] or "") if order_spec else 0.5
-                ts = ns * 0.6 + ss * 0.4
-                scored.append((ts, ns, ss, r))
-            scored.sort(key=lambda x: x[0], reverse=True)
-            ts, ns, ss, best = scored[0]
-            if ts >= 0.8:
-                result = _build_result(best, confidence=round(ts, 2), original_product_name=product_name)
-                result["match_method"] = f"Layer 2 模糊匹配+规格校验(名称{int(ns*100)}%+规格{int(ss*100)}%)"
-                result["need_confirm"] = False
-                return result
-            elif ts >= 0.6:
-                result = _build_result(best, confidence=round(ts, 2), original_product_name=product_name)
-                result["match_method"] = f"Layer 2 模糊匹配+规格校验(需确认)名称{int(ns*100)}%+规格{int(ss*100)}%)"
-                result["need_confirm"] = True
-                return result
+                kb = 0.0  # Layer 2 不算 keyword_boost
+                ts = _compute_match_score(ns, ss, kb,
+                                           order_unit=unit, sku_unit=r[2],
+                                           order_spec=order_spec, db_spec=r[5] or "",
+                                           layer="L2")
+                scored.append((ts, ns, ss, kb, r))
+            best_row, need_confirm, tied_rows = _select_unique_best(scored)
+            if best_row is not None:
+                ts, ns, ss, kb, _ = scored[0]  # 取排序后最高的分数
+                if need_confirm:
+                    return _build_with_candidates(
+                        tied_rows, confidence=round(ts, 2),
+                        original_product_name=product_name,
+                        match_method=f"Layer 2 模糊匹配 (多候选并列,名称{int(ns*100)}%+规格{int(ss*100)}%)")
+                else:
+                    # 唯一命中,按阈值判定
+                    if ts >= 0.8:
+                        result = _build_result(best_row, confidence=round(ts, 2), original_product_name=product_name)
+                        result["match_method"] = f"Layer 2 模糊匹配(名称{int(ns*100)}%+规格{int(ss*100)}%+单位加成)"
+                        return result
+                    elif ts >= 0.6:
+                        result = _build_result(best_row, confidence=round(ts, 2), original_product_name=product_name)
+                        result["match_method"] = f"Layer 2 模糊匹配(需确认)名称{int(ns*100)}%+规格{int(ss*100)}%+单位加成)"
+                        result["need_confirm"] = True
+                        return result
 
-    # Layer 2.5: 全量相似度匹配(内存)
+    # Layer 2.5: 全量相似度匹配(内存)（v5.14.0：用新公式）
     scored = []
     for r in all_skus:
         sku_name = r[1]
@@ -856,18 +867,27 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
         kb = _keyword_boost(clean_name, sku_name)
         if ns >= 0.7:
             kb = max(kb, 0.25)
-        ts = ns * 0.5 + ss * 0.3 + kb * 0.2
+        ts = _compute_match_score(ns, ss, kb,
+                                   order_unit=unit, sku_unit=r[2],
+                                   order_spec=order_spec, db_spec=r[5] or "",
+                                   layer="L25")
         scored.append((ts, ns, ss, kb, r))
     if scored:
-        scored.sort(key=lambda x: x[0], reverse=True)
-        ts, ns, ss, kb, best = scored[0]
-        if ts >= 0.7:
-            result = _build_result(best, confidence=min(0.85, round(ts, 2)), original_product_name=product_name)
-            result["match_method"] = f"Layer 2.5 相似度匹配(名称{int(ns*100)}%+规格{int(ss*100)}%+加成{int(kb*100)}%)"
-            result["need_confirm"] = ts < 0.8
-            return result
+        best_row, need_confirm, tied_rows = _select_unique_best(scored)
+        if best_row is not None:
+            ts, ns, ss, kb, _ = scored[0]
+            if need_confirm:
+                return _build_with_candidates(
+                    tied_rows, confidence=min(0.85, round(ts, 2)),
+                    original_product_name=product_name,
+                    match_method=f"Layer 2.5 相似度匹配 (多候选并列)")
+            elif ts >= 0.7:
+                result = _build_result(best_row, confidence=min(0.85, round(ts, 2)), original_product_name=product_name)
+                result["match_method"] = f"Layer 2.5 相似度匹配(名称{int(ns*100)}%+规格{int(ss*100)}%+加成{int(kb*100)}%+单位加成)"
+                result["need_confirm"] = ts < 0.8
+                return result
 
-    # Layer 3: 分词关键词匹配(内存)
+    # Layer 3: 分词关键词匹配(内存)（v5.14.0：用新公式）
     keywords = []
     for l in [5, 4, 3, 2]:
         if len(clean_name) >= l:
@@ -887,30 +907,39 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
             ns = SequenceMatcher(None, clean_name, r[1]).ratio()
             ss = _spec_match_score(order_spec, r[5] or "") if order_spec else 0.5
             kb = _keyword_boost(clean_name, r[1])
-            ts = ns * 0.5 + ss * 0.4 + kb
+            ts = _compute_match_score(ns, ss, kb,
+                                       order_unit=unit, sku_unit=r[2],
+                                       order_spec=order_spec, db_spec=r[5] or "",
+                                       layer="L3")
             all_matches.append((ts, ns, ss, kb, r))
 
     if all_matches:
-        all_matches.sort(key=lambda x: x[0], reverse=True)
-        ts, ns, ss, kb, best = all_matches[0]
-        if 0.55 <= ts < 0.6 and ns >= 0.7:
-            kb = max(kb, 0.2)
-            ts = min(0.79, ts + kb)
-        if ts >= 0.8:
-            result = _build_result(best, confidence=min(0.88, round(ts, 2)), original_product_name=product_name)
-            result["match_method"] = f"Layer 3 分词匹配(名称{int(ns*100)}%+规格{int(ss*100)}%+加成{int(kb*100)}%)"
-            result["need_confirm"] = False
-            return result
-        elif ts >= 0.6:
-            result = _build_result(best, confidence=min(0.88, round(ts, 2)), original_product_name=product_name)
-            result["match_method"] = f"Layer 3 分词匹配(需确认)名称{int(ns*100)}%+规格{int(ss*100)}%+加成{int(kb*100)}%)"
-            result["need_confirm"] = True
-            return result
-        elif 0.55 <= ts < 0.6 and ns >= 0.7:
-            result = _build_result(best, confidence=min(0.79, round(ts + 0.2, 2)), original_product_name=product_name)
-            result["match_method"] = f"Layer 3 分词匹配(Fallback加成)名称{int(ns*100)}%+加成20%)"
-            result["need_confirm"] = True
-            return result
+        best_row, need_confirm, tied_rows = _select_unique_best(all_matches)
+        if best_row is not None:
+            ts, ns, ss, kb, _ = all_matches[0]
+            # Layer 3 Fallback: 0.55-0.6 + name>=0.7 → +0.2 boost
+            if 0.55 <= ts < 0.6 and ns >= 0.7:
+                kb = max(kb, 0.2)
+                ts = min(0.79, ts + kb * 0.0)  # 公式已含 kb, 这里只补一点
+            if need_confirm:
+                return _build_with_candidates(
+                    tied_rows, confidence=min(0.88, round(ts, 2)),
+                    original_product_name=product_name,
+                    match_method=f"Layer 3 分词匹配 (多候选并列)")
+            elif ts >= 0.8:
+                result = _build_result(best_row, confidence=min(0.88, round(ts, 2)), original_product_name=product_name)
+                result["match_method"] = f"Layer 3 分词匹配(名称{int(ns*100)}%+规格{int(ss*100)}%+加成{int(kb*100)}%+单位加成)"
+                return result
+            elif ts >= 0.6:
+                result = _build_result(best_row, confidence=min(0.88, round(ts, 2)), original_product_name=product_name)
+                result["match_method"] = f"Layer 3 分词匹配(需确认)名称{int(ns*100)}%+规格{int(ss*100)}%+加成{int(kb*100)}%+单位加成)"
+                result["need_confirm"] = True
+                return result
+            elif 0.55 <= ts < 0.6 and ns >= 0.7:
+                result = _build_result(best_row, confidence=min(0.79, round(ts + 0.2, 2)), original_product_name=product_name)
+                result["match_method"] = f"Layer 3 分词匹配(Fallback加成)名称{int(ns*100)}%+加成20%)"
+                result["need_confirm"] = True
+                return result
 
     return {
         "matched": False, "confidence": 0.0, "sku_code": "",
