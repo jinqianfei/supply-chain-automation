@@ -244,7 +244,9 @@ def _transform_store(store_data: Dict, field_aliases: Dict) -> tuple:
 
     return {
         "store_name": store_name,
+        "phone": standardized.get("store_phone", store_data.get("phone", "")),
         "store_phone": standardized.get("store_phone", store_data.get("phone", "")),
+        "address": standardized.get("store_address", store_data.get("address", "")),
         "store_address": standardized.get("store_address", store_data.get("address", "")),
         "warehouse": standardized.get("warehouse", store_data.get("warehouse_name", "")),
         "raw_order_no": store_data.get("order_no", ""),
