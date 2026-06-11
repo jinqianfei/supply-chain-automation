@@ -1,3 +1,41 @@
+## [5.15.1] - 2026-06-11
+
+### Fixed
+- **P1-1: 用户补未匹配 SKU 后保留 seq 并按序重排**
+  - 问题：补 SKU 时新记录缺少 seq/spec/remark/product_spec，且 append 到末尾导致模板错行
+  - 修复：补齐缺失字段 + 按 seq 重排 sku_results
+- **P1-2: SKU 修正 update 失败显式报错**
+  - 问题：store_key/seq 匹配不到时静默跳过，用户以为已修正实际没生效
+  - 修复：记录 applied_updates/failed_updates，有失败时返回 need_sku_confirm + 失败原因
+- **P2: 字段标准化层同时输出 phone/address 兼容字段**
+  - 问题：只输出 store_phone/store_address，下游可能漏读
+  - 修复：同时输出 phone/store_phone、address/store_address
+
+### Added
+- 自学习模块：Layer 0 别名表多 SKU 结合 order_unit 选（和 Layer 1 逻辑一致）
+- 自学习模块：yaml SKU 别名加载（_load_yaml_sku_aliases）
+- 自学习模块：yaml 字段别名加载（_merge_auto_aliases）
+- 自学习模块：submitted_by 字段追踪（DB + adapter + collector + execute 参数）
+- 自学习模块：分析脚本 analyze_learning_data.py
+- 自学习模块：每日别名表汇总 daily_alias_summary.py
+- 自学习模块：通知配置 notification_config.yaml + notification_sender.py
+- 本地 launchd：com.ai-order.daily-alias-summary.plist
+- cron_tasks.txt（服务器迁移用）
+
+**改动文件：**
+  • `VERSION`
+  • `SKILL.md`
+  • `README.md`
+  • `CHANGELOG.md`
+  • `__init__.py`
+  • `tools/_sku_mapper.py`
+  • `tools/_field_transformer.py`
+  • `learn/schema.sql`
+  • `learn/adapter.py`
+  • `learn/collector.py`
+  • `field_mapping/rules/sku_aliases_auto.yaml`
+  • `field_mapping/rules/field_aliases_auto.yaml`
+
 ## [5.15.0] - 2026-06-11
 
 ### Added

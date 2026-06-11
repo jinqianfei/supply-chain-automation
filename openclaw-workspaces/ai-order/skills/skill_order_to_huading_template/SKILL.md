@@ -24,7 +24,7 @@ metadata:
 
 **Description**: 将客户订单（Excel/图片/PDF/文字/Word）转换为华鼎31字段出库单模板的完整流程。
 
-**Version**: 5.15.0 (2026-06-11 — 选SKU时考虑order_unit+规格,单位与SKU绑定；末尾孤立分隔符修复"果糖-"bug；多候选SKU展示；中文括号正则修复；unit_type动态选择)
+**Version**: 5.15.1 (2026-06-11 — P1审核报告修复：补SKU时保留seq+按序重排、update失败显式报错、字段兼容输出phone/address)
 
 
 **架构**：工具层 + 数据库层 + 字段映射规则库 三层分离

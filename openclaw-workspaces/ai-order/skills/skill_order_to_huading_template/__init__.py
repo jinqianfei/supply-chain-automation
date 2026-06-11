@@ -394,7 +394,7 @@ def _get_download_url(output_file: str) -> str:
 class OrderToHuadingTemplate:
     """订单转华鼎出库单模板Skill"""
     
-    VERSION = "5.15.0"
+    VERSION = "5.15.1"
     
     # ========== AI调用约束（方案1：技术层面）==========
     # AI 只能调用这些公开接口，不得直接调用内部工具函数
