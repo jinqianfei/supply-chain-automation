@@ -256,7 +256,7 @@ def _transform_store(store_data: Dict, field_aliases: Dict) -> tuple:
 
 
 def _load_rules(customer: str = "default") -> dict:
-    """加载客户对应的字段映射规则"""
+    """加载客户对应的字段映射规则（含自学习自动积累的别名）"""
     rules_dir = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
         "field_mapping", "rules"
@@ -267,12 +267,13 @@ def _load_rules(customer: str = "default") -> dict:
         path = os.path.join(rules_dir, fname)
         if os.path.exists(path):
             with open(path, "r") as f:
-                return yaml.safe_load(f) or {}
+                rules = yaml.safe_load(f) or {}
+                return _merge_auto_aliases(rules, rules_dir)
 
     # 尝试客户名模糊匹配
     if os.path.exists(rules_dir):
         for fname in os.listdir(rules_dir):
-            if fname.startswith(".") or fname.startswith("_"):
+            if fname.startswith(".") or fname.startswith("_") or fname == "field_aliases_auto.yaml":
                 continue
             if not fname.endswith((".yaml", ".yml")):
                 continue
@@ -282,7 +283,7 @@ def _load_rules(customer: str = "default") -> dict:
                     rule = yaml.safe_load(f) or {}
                 rule_cname = rule.get("customer_name", "")
                 if rule_cname and rule_cname in customer:
-                    return rule
+                    return _merge_auto_aliases(rule, rules_dir)
             except Exception:
                 continue
 
@@ -290,9 +291,41 @@ def _load_rules(customer: str = "default") -> dict:
     default_path = os.path.join(rules_dir, "default.yaml")
     if os.path.exists(default_path):
         with open(default_path, "r") as f:
-            return yaml.safe_load(f) or {}
+            rules = yaml.safe_load(f) or {}
+            return _merge_auto_aliases(rules, rules_dir)
 
-    return {"field_aliases": {}, "validation": {}}
+    rules = {"field_aliases": {}, "validation": {}}
+    return _merge_auto_aliases(rules, rules_dir)
+
+
+def _merge_auto_aliases(rules: dict, rules_dir: str) -> dict:
+    """合并自学习自动积累的字段别名（优先级高于默认规则）"""
+    auto_path = os.path.join(rules_dir, "field_aliases_auto.yaml")
+    if not os.path.exists(auto_path):
+        return rules
+    try:
+        with open(auto_path, "r") as f:
+            auto_data = yaml.safe_load(f) or {}
+        auto_aliases = auto_data.get("aliases", [])
+        if not auto_aliases:
+            return rules
+        # 确保 field_aliases 存在
+        if "field_aliases" not in rules:
+            rules["field_aliases"] = {}
+        # 合并：auto aliases 追加到对应标准字段的别名列表前面（高优先级）
+        for item in auto_aliases:
+            raw_name = item.get("raw_field_name", "")
+            std_field = item.get("standard_field", "")
+            if not raw_name or not std_field:
+                continue
+            if std_field not in rules["field_aliases"]:
+                rules["field_aliases"][std_field] = []
+            # 插入到列表开头（高优先级）
+            if raw_name not in rules["field_aliases"][std_field]:
+                rules["field_aliases"][std_field].insert(0, raw_name)
+        return rules
+    except Exception:
+        return rules
 
 
 def _find_std_field(raw_name: str, field_aliases: Dict) -> Optional[str]:

@@ -1724,7 +1724,8 @@ class OrderToHuadingTemplate:
     
     def execute(self, order_input: str = None, output_file: str = None, order_type: str = "auto",
                 ocr_result: Dict = None, confirmed_store: Dict = None,
-                order_data_cache: Dict = None, confirmed_sku: Union[bool, Dict] = False) -> Dict[str, Any]:
+                order_data_cache: Dict = None, confirmed_sku: Union[bool, Dict] = False,
+                submitted_by: str = None) -> Dict[str, Any]:
         """
         执行订单转华鼎模板（支持多格式输入）
         
