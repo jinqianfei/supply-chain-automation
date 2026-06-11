@@ -48,6 +48,12 @@ def _clean_product_name(name: str) -> str:
     cleaned = re.sub(r'[\uff08(][^)\uff09]*[\uff09)]', '', name)
     # 去除多余空格,但保留连接符(-、-、_)
     cleaned = re.sub(r'\s+', '', cleaned)
+    cleaned = cleaned.strip()
+    # 🆕 修复 (v5.13.3): 去除末尾的孤立分隔符
+    # 原因: 订单中常出现"果糖-"这种带尾部孤立符号的商品名,导致 Layer 1/1b 精确匹配失败
+    # 例如 "果糖-" 清洗后应是 "果糖",才能匹配 DB 中的 "果糖/新"
+    cleaned = re.sub(r'[-_./\\,;:]+$', '', cleaned)
+    cleaned = re.sub(r'^[-_./\\,;:]+', '', cleaned)
     return cleaned.strip()
 
 
