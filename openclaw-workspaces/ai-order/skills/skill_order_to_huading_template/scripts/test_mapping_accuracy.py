@@ -257,6 +257,95 @@ def test_unit_mapping(db_config):
             _record(False, tc["desc"], f"异常: {e}")
 
 
+# ===================== D: 仓库映射准确率 =====================
+
+def test_warehouse_mapping(db_config):
+    """仓库映射准确率测试 — warehouse_name → warehouse_code"""
+    _set_group("仓库映射")
+    print("\n[D] 仓库映射准确率")
+    print("-" * 60)
+
+    from tools._template_generator import get_warehouse_code
+    import psycopg2
+
+    # Part 1: 精确匹配测试 — 从 warehouse_code_mapping 表取样
+    conn = psycopg2.connect(**db_config)
+    cur = conn.cursor()
+
+    # 取 10 个有代表性的仓库 (覆盖高频使用的仓库)
+    cur.execute("""
+        SELECT wm.warehouse_name, wm.warehouse_code,
+               COUNT(sl.store_code) as store_count
+        FROM warehouse_code_mapping wm
+        LEFT JOIN store_list sl ON sl.warehouse = wm.warehouse_name
+        GROUP BY wm.warehouse_name, wm.warehouse_code
+        ORDER BY store_count DESC
+        LIMIT 10
+    """)
+    samples = cur.fetchall()
+    conn.close()
+
+    if not samples:
+        _record(False, "仓库映射", "warehouse_code_mapping 无数据")
+        return
+
+    for wh_name, expected_code, store_count in samples:
+        try:
+            actual_code = get_warehouse_code(wh_name, db_config)
+            matched = actual_code == expected_code
+            _record(matched,
+                    f"{wh_name} (关联{store_count}店) → {expected_code}",
+                    f"实际 code={actual_code}")
+        except Exception as e:
+            _record(False, f"{wh_name}", f"异常: {e}")
+
+    # Part 2: 门店关联仓库测试 — 门店匹配后 warehouse_code 是否正确
+    print()
+    print("  [D2] 门店→仓库 关联测试")
+    print("  " + "-" * 56)
+
+    conn = psycopg2.connect(**db_config)
+    cur = conn.cursor()
+
+    # 取每个货主各 1 个有仓库的门店
+    cur.execute("""
+        SELECT DISTINCT ON (sl.owner_code)
+               sl.store_name, sl.owner_code, sl.warehouse,
+               wm.warehouse_code as expected_wh_code
+        FROM store_list sl
+        JOIN warehouse_code_mapping wm ON wm.warehouse_name = sl.warehouse
+        WHERE sl.warehouse IS NOT NULL AND sl.warehouse != ''
+          AND sl.owner_code IS NOT NULL AND sl.owner_code != ''
+        ORDER BY sl.owner_code, sl.store_name
+    """)
+    store_wh_samples = cur.fetchall()
+    conn.close()
+
+    if not store_wh_samples:
+        _record(False, "门店→仓库关联", "无有仓库的门店数据")
+        return
+
+    from tools._store_matcher import match_store
+
+    for store_name, owner_code, wh_name, expected_wh_code in store_wh_samples:
+        try:
+            result = match_store(
+                store_name=store_name,
+                db_config=db_config,
+            )
+            if result is None:
+                _record(False, f"{store_name[:20]} → 仓库", "match_store 返回 None")
+                continue
+
+            actual_wh_code = result.get("warehouse_code", "")
+            matched = actual_wh_code == expected_wh_code
+            _record(matched,
+                    f"{store_name[:20]} → {wh_name} ({expected_wh_code})",
+                    f"实际 wh_code={actual_wh_code}")
+        except Exception as e:
+            _record(False, f"{store_name[:20]} → 仓库", f"异常: {e}")
+
+
 # ===================== 主函数 =====================
 
 def main():
