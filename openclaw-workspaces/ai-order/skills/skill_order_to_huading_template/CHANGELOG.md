@@ -19,6 +19,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - 没考虑到实际订单数据里 "-" 常作为"残留符号"出现（OCR 错误、人工输入漏字等）
 - 金姐反馈后才意识到：-作为分隔符（"D-X-H"）vs -作为孤立符号（"果糖-"）需要区别对待
 
+### Added
+- **CI 回归测试** (`scripts/test_sku_mapper_regression.py` + `scripts/ci_regression.sh`)
+  - 金姐 09:56 指示："OK，CI自动回归"
+  - **45 个测试用例**：32 单元测试（`_clean_product_name` 边界）+ 13 端到端测试（SKU 映射真实 DB）
+  - **覆盖**：中间连接符保留、末尾/开头孤立分隔符、两端都有、多连续、括号、空白、真实 SKU (椰子水/果糖/白糖糕D-X-H/浩然奥尔良翅中)
+  - **用法**：`bash scripts/ci_regression.sh` 或 `python3 scripts/test_sku_mapper_regression.py`
+  - **下次改 `_sku_mapper.py` 前必跑**，避免回归
+
 ## [5.13.2] - 2026-06-10
 
 ### Changed
