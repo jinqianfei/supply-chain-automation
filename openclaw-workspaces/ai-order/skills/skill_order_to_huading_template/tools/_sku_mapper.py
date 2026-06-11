@@ -842,10 +842,12 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
         if best_row is not None:
             ts, ns, ss, kb, _ = scored[0]  # sorted 后的第一个 = 最高分
             if need_confirm:
-                return _build_with_candidates(
-                    tied_rows, confidence=round(ts, 2),
-                    original_product_name=product_name,
-                    match_method=f"Layer 2 模糊匹配 (多候选并列,名称{int(ns*100)}%+规格{int(ss*100)}%)")
+                if ts >= 0.6:
+                    return _build_with_candidates(
+                        tied_rows, confidence=round(ts, 2),
+                        original_product_name=product_name,
+                        match_method=f"Layer 2 模糊匹配 (多候选并列,名称{int(ns*100)}%+规格{int(ss*100)}%)")
+                # 阈值不够，继续找下一层
             else:
                 # 唯一命中,按阈值判定
                 if ts >= 0.8:
@@ -882,10 +884,12 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
         if best_row is not None:
             ts, ns, ss, kb, _ = scored[0]
             if need_confirm:
-                return _build_with_candidates(
-                    tied_rows, confidence=min(0.85, round(ts, 2)),
-                    original_product_name=product_name,
-                    match_method=f"Layer 2.5 相似度匹配 (多候选并列)")
+                if ts >= 0.7:
+                    return _build_with_candidates(
+                        tied_rows, confidence=min(0.85, round(ts, 2)),
+                        original_product_name=product_name,
+                        match_method=f"Layer 2.5 相似度匹配 (多候选并列)")
+                # 阈值不够，继续找下一层
             elif ts >= 0.7:
                 result = _build_result(best_row, confidence=min(0.85, round(ts, 2)), original_product_name=product_name)
                 result["match_method"] = f"Layer 2.5 相似度匹配(名称{int(ns*100)}%+规格{int(ss*100)}%+加成{int(kb*100)}%+单位加成)"
@@ -928,10 +932,12 @@ def _map_single_in_batch(owner_code, product_name, spec, unit, quantity,
                 kb = max(kb, 0.2)
                 ts = min(0.79, ts + kb * 0.0)  # 公式已含 kb, 这里只补一点
             if need_confirm:
-                return _build_with_candidates(
-                    tied_rows, confidence=min(0.88, round(ts, 2)),
-                    original_product_name=product_name,
-                    match_method=f"Layer 3 分词匹配 (多候选并列)")
+                if ts >= 0.6:
+                    return _build_with_candidates(
+                        tied_rows, confidence=min(0.88, round(ts, 2)),
+                        original_product_name=product_name,
+                        match_method=f"Layer 3 分词匹配 (多候选并列)")
+                # 阈值不够，继续找下一层
             elif ts >= 0.8:
                 result = _build_result(best_row, confidence=min(0.88, round(ts, 2)), original_product_name=product_name)
                 result["match_method"] = f"Layer 3 分词匹配(名称{int(ns*100)}%+规格{int(ss*100)}%+加成{int(kb*100)}%+单位加成)"
