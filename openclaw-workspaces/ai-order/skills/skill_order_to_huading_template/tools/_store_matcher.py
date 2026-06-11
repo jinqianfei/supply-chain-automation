@@ -379,8 +379,8 @@ def _build_store_result(store: dict, match_type: str, match_method: str, db_conf
     """构建统一的门店信息返回格式"""
     warehouse_name = store.get("warehouse", "") or store.get("warehouse_name", "")
     warehouse_code = ""
+    warehouse_code_error = None
     if warehouse_name:
-        warehouse_code_error = None
         try:
             import psycopg2
             conn = psycopg2.connect(**db_config)

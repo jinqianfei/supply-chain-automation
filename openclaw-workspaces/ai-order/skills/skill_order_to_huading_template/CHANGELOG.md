@@ -1,3 +1,20 @@
+## [5.15.0] - 2026-06-11
+
+### Added
+- 新增功能
+
+**改动文件：**
+  • `CHANGELOG.md`
+  • `README.md`
+  • `SKILL.md`
+  • `VERSION`
+  • `__init__.py`
+  • `scripts/test_event_pipeline.py`
+  • `tools/_sku_mapper.py`
+  • `tools/_store_matcher.py`
+  • `tools/_template_generator.py`
+**触发来源：** session `auto-monitor`
+
 # Changelog
 
 All notable changes to this skill will be documented in this file.

@@ -7,9 +7,14 @@
 #   v5.13.3 (2026-06-11) 金姐反馈"果糖-"匹配不到 bug 修复后建立
 #
 # 检查项:
-#   1. 版本号一致性 (复用 version_check.sh)
-#   2. SKU 映射器回归测试 (test_sku_mapper_regression.py)
-#   3. 事件管道测试 (test_event_pipeline.py, 已有)
+#   1. 版本号一致性 (version_check.sh)
+#   2. 门店确认流程 (test_execute_confirmation_flow.py)
+#   3. import fallback (test_execute_import_fallback.py)
+#   4. Excel 解析 (test_order_parser_excel_header_detail.py)
+#   5. 文本解析 (test_order_parser_text_fallback.py)
+#   6. SKU 映射器回归 (test_sku_mapper_regression.py)
+#   6.5 映射准确率: 门店/货主/单位 (test_mapping_accuracy.py)
+#   7. 事件管道 (test_event_pipeline.py)
 #
 # 用法:
 #   bash scripts/ci_regression.sh              # 全量跑
@@ -58,13 +63,43 @@ run_step() {
 # 1. 版本号核对
 run_step "版本号一致性" "bash '$SKILL_DIR/scripts/version_check.sh'"
 
-# 2. SKU 映射器回归
+# 2. 门店确认流程
+if [ -f "$SKILL_DIR/scripts/test_execute_confirmation_flow.py" ]; then
+    run_step "门店确认流程" \
+             "python3 '$SKILL_DIR/scripts/test_execute_confirmation_flow.py'"
+fi
+
+# 3. import fallback
+if [ -f "$SKILL_DIR/scripts/test_execute_import_fallback.py" ]; then
+    run_step "import fallback" \
+             "python3 '$SKILL_DIR/scripts/test_execute_import_fallback.py'"
+fi
+
+# 4. Excel 解析
+if [ -f "$SKILL_DIR/scripts/test_order_parser_excel_header_detail.py" ]; then
+    run_step "Excel 解析" \
+             "python3 '$SKILL_DIR/scripts/test_order_parser_excel_header_detail.py'"
+fi
+
+# 5. 文本解析
+if [ -f "$SKILL_DIR/scripts/test_order_parser_text_fallback.py" ]; then
+    run_step "文本解析" \
+             "python3 '$SKILL_DIR/scripts/test_order_parser_text_fallback.py'"
+fi
+
+# 6. SKU 映射器回归
 if [ "$NO_SKU" = false ]; then
     run_step "SKU 映射器回归 (v5.13.3+)" \
              "python3 '$SKILL_DIR/scripts/test_sku_mapper_regression.py'"
 fi
 
-# 3. 事件管道
+# 6.5 映射准确率 (门店/货主/单位)
+if [ "$NO_SKU" = false ] && [ -f "$SKILL_DIR/scripts/test_mapping_accuracy.py" ]; then
+    run_step "映射准确率 (门店/货主/单位)" \
+             "python3 '$SKILL_DIR/scripts/test_mapping_accuracy.py'"
+fi
+
+# 7. 事件管道
 if [ "$NO_EVENTS" = false ] && [ -f "$SKILL_DIR/scripts/test_event_pipeline.py" ]; then
     run_step "事件管道 (Phase 1)" \
              "python3 '$SKILL_DIR/scripts/test_event_pipeline.py'"
