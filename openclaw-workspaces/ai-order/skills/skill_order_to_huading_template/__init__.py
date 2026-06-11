@@ -1931,6 +1931,23 @@ class OrderToHuadingTemplate:
                                 "match_type": si.get("match_type", "unknown"),
                                 "user_response_text": "user_provided_confirmed_store",
                             })
+                        # 自学习事件：门店纠正（用户从候选列表中选择或手动指定）
+                        if _HAS_EVENT_BUS:
+                            try:
+                                EventBus.emit("store_corrected", {
+                                    "session_id": order_session_id,
+                                    "timestamp": time.time(),
+                                    "store_name_submitted": store_name_for_match,
+                                    "user_corrected_to": {
+                                        "store_code": si.get("store_code", ""),
+                                        "store_name": si.get("store_name", ""),
+                                        "owner_code": si.get("owner_code", ""),
+                                    },
+                                    "match_type": si.get("match_type", "unknown"),
+                                    "match_score": float(si.get("similarity", 1.0) or 1.0),
+                                })
+                            except Exception as _e:
+                                print(f"[WARN] emit store_corrected failed: {_e}", flush=True)
                     else:
                         si = _call_match_store(
                             store_name=store_name_for_match,
@@ -2209,6 +2226,28 @@ class OrderToHuadingTemplate:
 
             # v5.14.0 audit: 即使 confirmed_sku=True, 有未匹配也不放行
             if not confirmed_sku or (total_unmatched > 0 and not isinstance(confirmed_sku, dict)):
+                # 自学习事件：SKU 需要用户确认
+                if _HAS_EVENT_BUS:
+                    try:
+                        _sku_items = []
+                        for _sr in all_store_results:
+                            for _sku in _sr.get("sku_results", []):
+                                _sku_items.append({
+                                    "seq": _sku.get("seq", 0),
+                                    "original_name": _sku.get("product_name", ""),
+                                    "match_layer": _sku.get("match_method", ""),
+                                    "match_score": float(_sku.get("confidence", 0) or 0),
+                                    "sku_code": _sku.get("sku_code", ""),
+                                    "sku_name": _sku.get("sku_name", ""),
+                                    "confidence": float(_sku.get("confidence", 0) or 0),
+                                })
+                        EventBus.emit("sku_confirm_needed", {
+                            "session_id": order_session_id,
+                            "timestamp": time.time(),
+                            "items": _sku_items,
+                        })
+                    except Exception as _e:
+                        print(f"[WARN] emit sku_confirm_needed failed: {_e}", flush=True)
                 return {
                     "success": False,
                     "need_sku_confirm": True,
