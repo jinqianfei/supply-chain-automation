@@ -29,6 +29,18 @@ PASS_COUNT = 0
 FAIL_COUNT = 0
 FAILURES = []
 
+# 🆕 分组统计 (v5.15.2): 每个测试组的 pass/fail 独立统计,用于末尾准确率汇总
+GROUP_STATS = {}  # {group_name: {"pass": int, "fail": int}}
+CURRENT_GROUP = ""
+
+
+def _set_group(name: str):
+    """设置当前测试组名 (在每组测试开头调用)"""
+    global CURRENT_GROUP
+    CURRENT_GROUP = name
+    if name not in GROUP_STATS:
+        GROUP_STATS[name] = {"pass": 0, "fail": 0}
+
 
 def _record(ok, name, detail=""):
     global PASS_COUNT, FAIL_COUNT
@@ -39,6 +51,12 @@ def _record(ok, name, detail=""):
         FAIL_COUNT += 1
         FAILURES.append((name, detail))
         print(f"  ❌ {name} -- {detail}")
+    # 🆕 分组统计
+    if CURRENT_GROUP and CURRENT_GROUP in GROUP_STATS:
+        if ok:
+            GROUP_STATS[CURRENT_GROUP]["pass"] += 1
+        else:
+            GROUP_STATS[CURRENT_GROUP]["fail"] += 1
 
 
 def _get_db_config():
@@ -65,6 +83,7 @@ def _get_db_config():
 
 def test_store_matching(db_config):
     """门店匹配准确率测试"""
+    _set_group("门店匹配")
     print("\n[A] 门店匹配准确率")
     print("-" * 60)
 
@@ -122,6 +141,7 @@ def test_store_matching(db_config):
 
 def test_owner_identification(db_config):
     """货主识别准确率测试 — 通过门店间接验证 owner_code"""
+    _set_group("货主识别")
     print("\n[B] 货主识别准确率 (门店→owner_code)")
     print("-" * 60)
 
@@ -168,6 +188,7 @@ def test_owner_identification(db_config):
 
 def test_unit_mapping(db_config):
     """单位映射准确率测试 — order_unit → unit_type + unit"""
+    _set_group("单位映射")
     print("\n[C] 单位映射准确率")
     print("-" * 60)
 
@@ -270,11 +291,29 @@ def main():
         traceback.print_exc()
         sys.exit(1)
 
-    # 汇总
+    # D: 仓库映射准确率
+    try:
+        test_warehouse_mapping(db_config)
+    except Exception as e:
+        print(f"\n❌ 仓库映射测试异常: {e}")
+        traceback.print_exc()
+        FAIL_COUNT += 1
+
+    # 🆕 汇总 + 分组准确率
     total = PASS_COUNT + FAIL_COUNT
     print("\n" + "=" * 60)
     print(f"总计: {total} 个测试, {PASS_COUNT} ✅ 通过, {FAIL_COUNT} ❌ 失败")
     print("=" * 60)
+
+    # 🆕 分组准确率汇总
+    print("\n📊 准确率指标汇总:")
+    print("-" * 60)
+    for group_name, stats in GROUP_STATS.items():
+        g_total = stats["pass"] + stats["fail"]
+        g_pct = stats["pass"] / g_total * 100 if g_total > 0 else 0
+        status = "✅" if stats["fail"] == 0 else "⚠️" if g_pct >= 80 else "❌"
+        print(f"  {status} {group_name:12s}: {stats['pass']}/{g_total} ({g_pct:.0f}%)")
+    print("-" * 60)
 
     if FAILURES:
         print("\n失败列表:")
