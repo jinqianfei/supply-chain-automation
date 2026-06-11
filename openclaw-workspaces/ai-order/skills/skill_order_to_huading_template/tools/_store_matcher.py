@@ -160,13 +160,63 @@ def match_store(store_name: str, customer_company: str = None,
                         store_name.startswith("PN") or
                         len(store_name) < 3)
 
-    # 【修复】有手机号时优先尝试手机号精确匹配（最高准确率）
+    # 【v5.15.0】有手机号时匹配，增加门店名校验
     if phone:
-        store = _find_by_phone(phone, db_config)
-        if store:
-            return _build_store_result(store, "phone_exact",
-                                       f"手机号精确匹配（{phone}）", db_config)
-        # 手机号没匹配到，且store_name也无效时，尝试地址关键词（phone可能换了）
+        phone_result = _find_by_phone(phone, db_config)
+        if phone_result:
+            if isinstance(phone_result, dict) and phone_result.get("_multi"):
+                # 多门店共用手机号 → 按门店名相似度排序
+                stores = phone_result["stores"]
+                scored = []
+                for s in stores:
+                    # 先完整名称相似度
+                    sim = SequenceMatcher(None, store_name, s["store_name"]).ratio()
+                    if sim < 0.6:
+                        # 不够则去品牌前缀再算
+                        sim2 = SequenceMatcher(
+                            None,
+                            _strip_brand_prefix(store_name),
+                            _strip_brand_prefix(s["store_name"])
+                        ).ratio()
+                        sim = max(sim, sim2)
+                    scored.append((sim, s))
+                scored.sort(key=lambda x: x[0], reverse=True)
+                best_sim, best_store = scored[0]
+
+                if best_sim >= 0.8:
+                    return _build_store_result(best_store, "phone_exact_high_conf",
+                                               f"手机号+门店名双重匹配（{phone}，{best_sim:.0%}）", db_config)
+                elif best_sim >= 0.6:
+                    result = _build_store_result(best_store, "phone_exact_multi",
+                                                 f"手机号匹配+门店名待确认（{phone}，{best_sim:.0%}）", db_config)
+                    result["need_confirm"] = True
+                    result["candidates"] = [_build_store_result(s, "phone_exact_multi",
+                                                 f"{phone}，{sim:.0%}", db_config)
+                                            for sim, s in scored if sim >= 0.5]
+                    return result
+                # else: 全部 < 0.6，不信任手机号，继续往下
+            else:
+                # 唯一命中 → 也要做门店名校验
+                sim = SequenceMatcher(None, store_name, phone_result["store_name"]).ratio()
+                if sim < 0.6:
+                    sim2 = SequenceMatcher(
+                        None,
+                        _strip_brand_prefix(store_name),
+                        _strip_brand_prefix(phone_result["store_name"])
+                    ).ratio()
+                    sim = max(sim, sim2)
+
+                if sim >= 0.8:
+                    return _build_store_result(phone_result, "phone_exact_high_conf",
+                                               f"手机号+门店名双重匹配（{phone}，{sim:.0%}）", db_config)
+                elif sim >= 0.6:
+                    result = _build_store_result(phone_result, "phone_exact",
+                                                 f"手机号匹配+门店名待确认（{phone}，{sim:.0%}）", db_config)
+                    result["need_confirm"] = True
+                    return result
+                # else: < 0.6，不信任手机号，继续往下
+
+        # 手机号没匹配到或门店名差异太大，且store_name也无效时，尝试地址关键词
         if _is_invalid_name and address:
             addr_result = _match_by_address_keyword(address, db_config)
             if addr_result:
