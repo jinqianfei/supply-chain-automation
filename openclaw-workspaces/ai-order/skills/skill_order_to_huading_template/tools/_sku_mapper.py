@@ -218,7 +218,7 @@ def _compute_match_score(name_score: float, spec_score: float, keyword_boost: fl
     v5.14.0 新增: 统一计算 SKU 匹配分数
 
     加成:
-      - order_unit == sku_unit → +0.15 (单位精确命中)
+      - order_unit == sku_unit → +0.20 (单位精确命中)
       - order_spec == db_spec → +0.10 (规格精确命中)
 
     Args:
@@ -247,7 +247,7 @@ def _compute_match_score(name_score: float, spec_score: float, keyword_boost: fl
 
     # 🆕 单位命中加成 (所有层通用, v5.14.0)
     if order_unit and sku_unit and order_unit == sku_unit:
-        ts += 0.15
+        ts += 0.20
 
     # 🆕 规格精确命中加成
     if order_spec and db_spec and order_spec == db_spec:
