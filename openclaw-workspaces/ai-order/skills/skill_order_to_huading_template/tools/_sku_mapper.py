@@ -413,11 +413,33 @@ def _map_sku_legacy(owner_code: str, product_name: str, unit: str = "",
     """, (owner_code, product_name))
     alias_rows = cur.fetchall()
     if alias_rows:
-        r = alias_rows[0]  # 临时取第一个,单位选择后置
-        conn.close()
-        result = _build_result(r, confidence=0.98, original_product_name=product_name)
-        result["match_method"] = "Layer 0 别名表精确匹配"
-        return result
+        if len(alias_rows) == 1:
+            r = alias_rows[0]
+            conn.close()
+            result = _build_result(r, confidence=0.98, original_product_name=product_name)
+            result["match_method"] = "Layer 0 别名表精确匹配"
+            return result
+        else:
+            # v5.15.1: 多候选时按 order_unit 选（和 Layer 1 逻辑一致）
+            if unit:
+                unit_matches = [r for r in alias_rows if r[2] == unit]
+                if len(unit_matches) == 1:
+                    r = unit_matches[0]
+                    conn.close()
+                    result = _build_result(r, confidence=0.98, original_product_name=product_name)
+                    result["match_method"] = f"Layer 0 别名表精确匹配 (单位命中: {unit})"
+                    return result
+                elif len(unit_matches) > 1:
+                    conn.close()
+                    return _build_with_candidates(
+                        unit_matches, confidence=0.98,
+                        original_product_name=product_name,
+                        match_method=f"Layer 0 别名表精确匹配 (多 SKU 同单位: {unit})")
+            conn.close()
+            return _build_with_candidates(
+                alias_rows, confidence=0.98,
+                original_product_name=product_name,
+                match_method="Layer 0 别名表精确匹配 (多候选待选)")
 
     # ========== Layer 1: 精确匹配(原始名称) ==========
     cur.execute(f"""
