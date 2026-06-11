@@ -5,6 +5,40 @@ All notable changes to this skill will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.14.0] - 2026-06-11
+
+### Changed
+- **选 SKU 时考虑 order_unit 和规格 (金姐指示 - "单位和 sku 是绑定的")**
+  - 新增 `_compute_match_score()` 统一打分函数 (Layer 2/2.5/3 共用)
+    - 基础权重 + `order_unit == sku_unit` 加成 +0.20 (强信号)
+    - `order_spec == db_spec` 加成 +0.10 (中信号)
+  - 新增 `_select_unique_best()` 选唯一最高分函数
+    - 唯一最高分 → 直接返回,不加 need_confirm
+    - 多个并列最高 → 返回 candidates + need_confirm=True
+  - 新增 `_build_with_candidates()` 复用 v5.13.2 的 candidates 机制
+  - **Layer 1/1b 多候选时按 order_unit 选**：唯一命中不返 candidates, 多个或 0 命中返 candidates
+  - **Layer 2 取消 `if clean_name != product_name` 限制**：v5.14.0 修复, 原限制导致 clean_name=果糖=product_name 时 Layer 2 跳过, 但 DB 里 SKU 叫 "果糖/新"必须走 Layer 2
+  - **未命中原因**："订单 1 件匹配到瓶"的 bug 根因是 Layer 1/1b 多候选时直接取 first, 没看 order_unit
+  - **设计原则**: SKU 和 unit 是绑定的, 不是单独匹配的
+
+### Why
+- 金姐 10:52 指出: "理论上来说单位和 sku 是绑定的不是单独匹配的"
+- v5.13.0 之前 `_resolve_unit_type()` 会选完 SKU 后按 order_unit 选 unit
+- v5.13.0 "用户选 SKU 即选单位" 改动后, order_unit 没人接了, 变成"先选 SKU 再看 unit"
+- 实际表现: 订单 1 件匹配到 12 瓶/件 SKU 错误, Layer 2/2.5/3 不看 order_unit, 排序后取 first
+
+### Behavior
+- `果糖+桶` → SK230904000008 (桶/小单位) 唯一命中 ✅
+- `果糖+箱` → SK230904000009 (箱/大单位) 唯一命中 ✅
+- `果糖` (无单位) → candidates 2 个 (小单位/大单位)
+- `果糖+件` (件不在DB) → candidates 2 个 (因为 order_unit 没命中任何 SKU)
+- **出库数量不换算** (金姐指示): quantity 保持原值, 不按 conversion_ratio 换算
+
+### CI 回归
+- 新增 B5/B6 测试用例 (8 个)
+- 旧 45 个测试 + 新 8 个 = **53 个测试全过**
+- 1 步 SKU 回归 + 1 步版本号核对 = 2 步 CI 全过
+
 ## [5.13.3] - 2026-06-11
 
 ### Fixed
