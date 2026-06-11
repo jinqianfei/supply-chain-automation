@@ -1,0 +1,12 @@
+# 字段别名表（自学习自动维护）
+# 最后更新: 2026-06-11
+# 勿手动编辑，由自学习模块自动更新
+
+aliases: []
+# 示例格式：
+# - raw_field_name: "配送点名称"
+#   standard_field: "store_name"
+#   shipper_id: "HZ2023061500002"  # 可为空=通用
+#   source: "auto"
+#   confirm_count: 3
+#   confirmed_at: "2026-06-11"
