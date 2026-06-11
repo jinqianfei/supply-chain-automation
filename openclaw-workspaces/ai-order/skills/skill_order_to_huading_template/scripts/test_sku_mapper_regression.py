@@ -292,6 +292,92 @@ def test_sku_bracket_spec(map_sku_batch, db_config):
         )
 
 
+def test_sku_v5140_unit_match(map_sku_batch, db_config):
+    """v5.14.0 修复: 订单单位命中加成 + 唯一性选择"""
+    print("\n[B5] v5.14.0 修复 - 订单单位命中选对应 SKU (HZ2023061500002)")
+    print("-" * 60)
+
+    # 果糖+桶 → 唯一命中 SK230904000008 (桶/小单位)
+    items = [_make_item("果糖", "桶")]
+    results, unmatched = map_sku_batch("HZ2023061500002", items, db_config)
+    if results:
+        r = results[0]
+        _record(
+            r["matched"] and r["sku_code"] == "SK230904000008",
+            "果糖+桶 → SK230904000008 (桶/小单位) 唯一命中",
+            f"实际 sku={r['sku_code']}, unit={r['unit']}, type={r['unit_type']}",
+        )
+        _record(
+            r["unit_type"] == "小单位",
+            "果糖+桶 → unit_type=小单位",
+            f"实际 unit_type={r['unit_type']}",
+        )
+        _record(
+            not r.get("need_confirm", False) or r.get("candidates") is None,
+            "果糖+桶 → 唯一命中不返 candidates",
+            f"need_confirm={r.get('need_confirm')}, candidates={len(r.get('candidates', []))}",
+        )
+    else:
+        _record(False, "果糖+桶", "未命中")
+
+    # 果糖+箱 → 唯一命中 SK230904000009 (箱/大单位)
+    items = [_make_item("果糖", "箱")]
+    results, unmatched = map_sku_batch("HZ2023061500002", items, db_config)
+    if results:
+        r = results[0]
+        _record(
+            r["matched"] and r["sku_code"] == "SK230904000009",
+            "果糖+箱 → SK230904000009 (箱/大单位) 唯一命中",
+            f"实际 sku={r['sku_code']}, unit={r['unit']}, type={r['unit_type']}",
+        )
+        _record(
+            r["unit_type"] == "大单位",
+            "果糖+箱 → unit_type=大单位",
+            f"实际 unit_type={r['unit_type']}",
+        )
+    else:
+        _record(False, "果糖+箱", "未命中")
+
+
+def test_sku_v5140_candidates(map_sku_batch, db_config):
+    """v5.14.0 修复: 无 order_unit 或 unit 不匹配时返回 candidates"""
+    print("\n[B6] v5.14.0 修复 - 多个候选返回 candidates (HZ2023061500002)")
+    print("-" * 60)
+
+    # 果糖 (无单位) → candidates 2 个 (桶/小单位, 箱/大单位)
+    items = [_make_item("果糖", "")]
+    results, unmatched = map_sku_batch("HZ2023061500002", items, db_config)
+    if results:
+        r = results[0]
+        _record(
+            r.get("candidates") is not None and len(r.get("candidates", [])) >= 2,
+            "果糖 (无单位) → candidates >= 2 个",
+            f"candidates={len(r.get('candidates', []))}",
+        )
+        if r.get("candidates"):
+            codes = [c["sku_code"] for c in r["candidates"]]
+            _record(
+                "SK230904000008" in codes and "SK230904000009" in codes,
+                "果糖 candidates 包含两个 unit 的 SKU",
+                f"codes={codes}",
+            )
+    else:
+        _record(False, "果糖 (无单位)", "未命中")
+
+    # 果糖+件 (DB 里没"件"单位) → candidates 2 个 (因为 0 unit 命中)
+    items = [_make_item("果糖", "件")]
+    results, unmatched = map_sku_batch("HZ2023061500002", items, db_config)
+    if results:
+        r = results[0]
+        # 件 不是 DB 里的 unit, Layer 1 找不到, Layer 2 需选
+        # v5.14.0 行为: 没有 order_unit 命中 → 返回 candidates
+        _record(
+            r.get("candidates") is not None and len(r.get("candidates", [])) >= 2,
+            "果糖+件 (件不在DB) → candidates >= 2 个",
+            f"candidates={len(r.get('candidates', []))}, need_confirm={r.get('need_confirm')}",
+        )
+
+
 # ===================== 主函数 =====================
 
 
@@ -316,6 +402,8 @@ def main():
             test_sku_v5133_fix(map_sku_batch, db_config)
             test_sku_preserve_connector(map_sku_batch, db_config)
             test_sku_bracket_spec(map_sku_batch, db_config)
+            test_sku_v5140_unit_match(map_sku_batch, db_config)
+            test_sku_v5140_candidates(map_sku_batch, db_config)
         except Exception as e:
             print(f"\n❌ 端到端测试异常: {e}")
             traceback.print_exc()
