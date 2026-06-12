@@ -14,7 +14,7 @@ class OpenClawProvider(LLMProvider):
     def __init__(self, config: dict = None):
         """初始化"""
         self.config = config or {}
-        self.model = self.config.get("model", "minimax-portal/MiniMax-M3")  # 默认用 MiniMax-M3
+        self.model = self.config.get("model")  # 由 llm.yaml 配置，不硬编码默认值
     
     def chat(self, req: ChatRequest) -> ChatResponse:
         """使用 OpenClaw 平台模型"""
