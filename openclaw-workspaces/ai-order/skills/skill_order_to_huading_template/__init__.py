@@ -2105,7 +2105,11 @@ class OrderToHuadingTemplate:
                     store_name_for_match = store_data.get("store_name", store_key)
                     si = confirmed_stores.get(store_key)
                     if not si:
-                        # 不应发生（Phase A 已确保全部确认）
+                        # v5.15.3 fix: 尝试通过别名查找（AI 可能用不同 key 存储确认结果）
+                        si = _confirmed_store_for(confirmed_stores, store_key, store_name_for_match)
+                    if not si:
+                        # 不应发生（Phase A 已确保全部确认），但跳过比用错误门店更安全
+                        print(f"[WARN] Phase B: store_key={store_key} 未找到确认信息，跳过", flush=True)
                         continue
 
                     owner_code = si.get("owner_code", self.shipper_id)
