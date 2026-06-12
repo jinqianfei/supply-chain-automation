@@ -229,19 +229,27 @@ def _merge_confirmed_store(confirmed_stores: Dict[str, Dict[str, Any]],
 
 def _confirmed_store_for(confirmed_stores: Dict[str, Dict[str, Any]],
                          store_key: str, store_name: str) -> Optional[Dict[str, Any]]:
-    """Find a prior confirmation by stable store key or submitted/display name."""
+    """Find a prior confirmation by stable store key or submitted/display name.
+
+    v5.15.3 fix: Removed overly-broad fallback that matched _store_key against
+    the current store_key, which caused single-store confirmations to leak into
+    ALL stores in multi-store orders (P1 bug from 2026-06-10).
+    Now only exact key/name matches are used; fallback checks store_name_submitted
+    against BOTH the current store_key and store_name to support alias keys.
+    """
     if not confirmed_stores:
         return None
     candidates = [store_key, store_name]
+    # 1) Direct key lookup (most common path)
     for key in candidates:
         if key and key in confirmed_stores:
             return confirmed_stores[key]
+    # 2) Fallback: check if any confirmed store's submitted name is an alias
     for store in confirmed_stores.values():
         if not isinstance(store, dict):
             continue
-        if store.get("_store_key") == store_key:
-            return store
-        if store.get("store_name_submitted") in candidates:
+        submitted = store.get("store_name_submitted")
+        if submitted and submitted in candidates:
             return store
     return None
 
