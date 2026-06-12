@@ -2,7 +2,7 @@
 
 ## 最新Skill版本
 
-**当前活跃版本**: skill_order_to_huading_template **v5.15.2**（2026-06-12 — store_corrected 误触发修复 + 自学习模块硬编码全修 + 补缺组件）
+**当前活跃版本**: skill_order_to_huading_template **v5.15.3**（2026-06-12 — P1多门店confirmed_store跨门店泄漏修复）
 
 **路径**: `/Users/jinqianfei/openclaw-workspaces/ai-order/skills/skill_order_to_huading_template/`
 
@@ -90,6 +90,28 @@
 ---
 
 ## 最近会话摘要
+
+### 2026-06-12 13:39 — P1 多门店 confirmed_store 跨门店泄漏修复
+
+**金姐指示**：修复 P1 bug
+
+**Bug 描述**：
+- 多门店订单中，当 AI 只传 1 个 confirmed_store 时，所有门店的 Excel 行都用第 1 门店的 store_code
+- 根因：`_confirmed_store_for` 的 fallback 循环中 `store.get("_store_key") == store_key` 会把门店A的确认信息错误地返回给门店B
+
+**修复内容**：
+- `_confirmed_store_for`：移除 `_store_key` fallback，仅保留精确 key 查找 + `store_name_submitted` 别名查找
+- Phase B：增加 `_confirmed_store_for` fallback + warn 日志（避免直接 skip）
+- 新增测试：`tests/test_p1_multi_store_fix.py`（4 个用例：隔离/别名/批量/别名匹配）
+
+**测试结果**：
+- P1 专项：4/4 PASSED
+- CI 回归：53/53 SKU 测试通过（前 6 步全过，准确率测试因 DB 超时被 kill）
+
+**产出**：
+- v5.15.3 发布（VERSION + CHANGELOG + SKILL.md + AGENTS.md + MEMORY.md + TOOLS.md）
+
+---
 
 ### 2026-06-12 09:40 — 自学习模块 Review + 硬编码修复 + 闭环补齐
 
