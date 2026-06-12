@@ -1931,14 +1931,19 @@ class OrderToHuadingTemplate:
                         confirmed_stores[store_key] = si
 
                         # v5.15.3 fix: 先跑系统匹配，判断是「确认」还是「纠正」
-                        _system_match = _call_match_store(
-                            store_name=store_name_for_match,
-                            customer_company=store_data.get("shipper_name", ""),
-                            db_config=self.db_config,
-                            phone=store_data.get("phone") or store_data.get("store_phone"),
-                            address=store_data.get("address") or store_data.get("store_address"),
-                            contact_person=store_data.get("contact_person"),
-                        )
+                        # v5.15.4 fix: 容错包裹，DB 不可用时不阻断主流程
+                        _system_match = None
+                        try:
+                            _system_match = _call_match_store(
+                                store_name=store_name_for_match,
+                                customer_company=store_data.get("shipper_name", ""),
+                                db_config=self.db_config,
+                                phone=store_data.get("phone") or store_data.get("store_phone"),
+                                address=store_data.get("address") or store_data.get("store_address"),
+                                contact_person=store_data.get("contact_person"),
+                            )
+                        except Exception as _sm_err:
+                            print(f"[WARN] 系统匹配对比失败（不阻断）: {_sm_err}", flush=True)
                         _system_store_code = (_system_match or {}).get("store_code", "") if isinstance(_system_match, dict) else ""
                         _user_store_code = si.get("store_code", "")
                         _is_correction = bool(_system_store_code and _user_store_code and _system_store_code != _user_store_code)
@@ -2155,14 +2160,19 @@ class OrderToHuadingTemplate:
                     confirmed_stores[store_key] = store_info
 
                     # v5.15.3 fix: 跑系统匹配判断是「确认」还是「纠正」
-                    _system_match_single = _call_match_store(
-                        store_name=store_name_val,
-                        customer_company=shipper_name_val,
-                        db_config=self.db_config,
-                        phone=phone_val,
-                        address=address_val,
-                        contact_person=contact_val,
-                    )
+                    # v5.15.4 fix: 容错包裹，DB 不可用时不阻断主流程
+                    _system_match_single = None
+                    try:
+                        _system_match_single = _call_match_store(
+                            store_name=store_name_val,
+                            customer_company=shipper_name_val,
+                            db_config=self.db_config,
+                            phone=phone_val,
+                            address=address_val,
+                            contact_person=contact_val,
+                        )
+                    except Exception as _sm_err:
+                        print(f"[WARN] 系统匹配对比失败（不阻断）: {_sm_err}", flush=True)
                     _sys_code = (_system_match_single or {}).get("store_code", "") if isinstance(_system_match_single, dict) else ""
                     _user_code = store_info.get("store_code", "")
                     _is_correction_single = bool(_sys_code and _user_code and _sys_code != _user_code)
