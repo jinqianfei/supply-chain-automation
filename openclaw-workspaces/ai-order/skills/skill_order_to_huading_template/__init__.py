@@ -2141,6 +2141,20 @@ class OrderToHuadingTemplate:
                     store_info.setdefault("_store_key", store_key)
                     store_info.setdefault("store_name_submitted", store_name_val)
                     confirmed_stores[store_key] = store_info
+
+                    # v5.15.3 fix: 跑系统匹配判断是「确认」还是「纠正」
+                    _system_match_single = _call_match_store(
+                        store_name=store_name_val,
+                        customer_company=shipper_name_val,
+                        db_config=self.db_config,
+                        phone=phone_val,
+                        address=address_val,
+                        contact_person=contact_val,
+                    )
+                    _sys_code = (_system_match_single or {}).get("store_code", "") if isinstance(_system_match_single, dict) else ""
+                    _user_code = store_info.get("store_code", "")
+                    _is_correction_single = bool(_sys_code and _user_code and _sys_code != _user_code)
+
                     # v5.9.0 Phase 1：emit 门店已确认事件（单门店版）
                     if _HAS_EVENT_BUS:
                         EventBus.emit("store_confirmed", {
@@ -2153,6 +2167,27 @@ class OrderToHuadingTemplate:
                             "match_type": store_info.get("match_type", "unknown"),
                             "user_response_text": "user_provided_confirmed_store",
                         })
+                    # v5.15.3: 仅当用户选的门店 ≠ 系统匹配的门店时才 emit
+                    if _is_correction_single and _HAS_EVENT_BUS:
+                        try:
+                            EventBus.emit("store_corrected", {
+                                "session_id": order_session_id,
+                                "timestamp": time.time(),
+                                "store_name_submitted": store_name_val,
+                                "original_match": {
+                                    "store_code": _sys_code,
+                                    "store_name": (_system_match_single or {}).get("store_name", ""),
+                                },
+                                "user_corrected_to": {
+                                    "store_code": store_info.get("store_code", ""),
+                                    "store_name": store_info.get("store_name", ""),
+                                    "owner_code": store_info.get("owner_code", ""),
+                                },
+                                "match_type": store_info.get("match_type", "unknown"),
+                                "match_score": float(store_info.get("similarity", 1.0) or 1.0),
+                            })
+                        except Exception as _e:
+                            print(f"[WARN] emit store_corrected (single) failed: {_e}", flush=True)
                 else:
                     store_info = _call_match_store(
                         store_name=store_name_val,
