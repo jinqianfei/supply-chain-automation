@@ -1,3 +1,15 @@
+## [5.15.4] - 2026-06-12
+
+### Fixed
+- **confirmed_store 后二次 DB 匹配阻断流程**
+  - 问题：用户确认门店后，系统为判断 `store_corrected` 强制重跑 `_call_match_store()`，DB 不可用时直接抛 `OperationalError` 阻断整个流程
+  - 修复：多门店（L1933）和单门店（L2158）两处都用 try/except 包裹，失败时跳过 store_corrected 判定，不阻断主流程
+- **contact_person 兜底路径未处理多门店共用手机号**
+  - 问题：`_find_by_phone()` 返回 `{"_multi": True, "stores": [...]}` 时，直接传给 `_build_store_result`，字段缺失
+  - 修复：复用主手机号路径的多门店打分逻辑（相似度排序 + need_confirm + candidates）
+- **版本号对齐**
+  - 修复 `__init__.py VERSION` 和 `README.md` 遗漏更新的版本残留
+
 ## [5.15.3] - 2026-06-12
 
 ### Fixed
