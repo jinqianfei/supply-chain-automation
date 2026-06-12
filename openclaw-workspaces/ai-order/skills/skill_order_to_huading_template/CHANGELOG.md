@@ -1,3 +1,23 @@
+## [5.15.2] - 2026-06-12
+
+### Fixed
+- **store_corrected 多门店误触发 bug**
+  - 问题：多门店 Phase B 对所有已确认门店都 emit store_corrected，不区分「确认」和「纠正」
+  - 修复：新增系统匹配对比逻辑，仅当用户选的门店 ≠ 系统匹配的门店时才 emit store_corrected
+  - 影响范围：多门店 + 单门店两条路径都修复
+  - 副作用：每次确认门店时多跑一次 _call_match_store（性能开销可忽略）
+
+### Added
+- **submitted_by / corrected_by DB 列**
+  - order_feedback 新增 submitted_by TEXT（追踪订单提交人）
+  - order_corrections 新增 corrected_by TEXT（追踪纠正人）
+- **历史订单回放脚本** scripts/history_replay.py
+  - 从 order_feedback 取历史订单重跑 execute()，对比新旧匹配结果
+  - 输出 /tmp/history_replay_YYYYMMDD.md
+- **准确率对比报告脚本** scripts/accuracy_comparison.py
+  - 接收两个版本号参数，按版本分组对比匹配率/确认率/纠正率
+  - 支持 --json 输出
+
 ## [5.15.1] - 2026-06-11
 
 ### Fixed
