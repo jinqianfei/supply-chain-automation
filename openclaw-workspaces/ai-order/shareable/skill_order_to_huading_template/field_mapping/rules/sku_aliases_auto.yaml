@@ -1,0 +1,12 @@
+# SKU 别名表（自学习自动维护）
+# 最后更新: 2026-06-11
+# 勿手动编辑，由自学习模块自动更新
+
+aliases: []
+# 示例格式：
+# - order_product_name: "果糖-"
+#   system_product_name: "果糖/新"
+#   shipper_id: "HZ2023061500002"
+#   source: "auto"
+#   correction_count: 5
+#   confirmed_at: "2026-06-11"

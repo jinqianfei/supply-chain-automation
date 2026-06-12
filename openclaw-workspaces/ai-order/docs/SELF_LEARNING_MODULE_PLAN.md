@@ -102,7 +102,7 @@ ALTER TABLE order_feedback ADD COLUMN submitted_by VARCHAR;
 
 ---
 
-## 3. L2 分析层（待开发）
+## 3. L2 分析层（✅ 已完成）
 
 ### 3.1 分析脚本
 
@@ -143,7 +143,7 @@ ALTER TABLE order_feedback ADD COLUMN submitted_by VARCHAR;
 
 ---
 
-## 4. L3 改进层（待开发）
+## 4. L3 改进层（✅ 核心已完成）
 
 ### 4.1 改进类型 × 风险等级 × 审批流程
 
@@ -228,7 +228,7 @@ aliases:
 
 ---
 
-## 5. L4 验证层（待开发）
+## 5. L4 验证层（✅ 已完成）
 
 ### 5.1 CI 回归测试
 

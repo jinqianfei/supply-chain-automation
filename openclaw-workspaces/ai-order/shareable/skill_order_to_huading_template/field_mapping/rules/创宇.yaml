@@ -1,0 +1,65 @@
+# 盐城市创宇食品有限公司 字段映射规则
+customer_name: "盐城市创宇食品有限公司"
+description: "创宇订单格式字段映射规则"
+
+field_aliases:
+  # 商品
+  product_name:
+    - "商品名称"
+    - "商品名"
+    - "品名"
+
+  product_spec:
+    - "规格"
+    - "包装规格"
+
+  quantity:
+    - "数量"
+    - "出库数量"
+
+  unit:
+    - "销售单位"
+    - "单位"
+
+  remark:
+    - "备注"
+    - "备注信息"
+
+  # 门店
+  store_name:
+    - "往来单位名称"
+    - "门店名称"
+    - "门店"
+    - "收货门店"
+
+  # 电话
+  store_phone:
+    - "结算单位电话"
+    - "联系电话"
+    - "电话"
+    - "手机号"
+
+  # 地址
+  store_address:
+    - "结算单位详细地址"
+    - "详细地址"
+    - "地址"
+    - "收货地址"
+
+  # 订单
+  raw_order_no:
+    - "订单号"
+    - "单号"
+    - "订单编号"
+    - "送货单号"
+
+  order_date:
+    - "单据日期"
+    - "日期"
+
+validation:
+  required:
+    - product_name
+    - quantity
+  types:
+    quantity: [int, float, str]
