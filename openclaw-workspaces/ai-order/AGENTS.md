@@ -12,14 +12,14 @@
 - `output/` - 输出结果
 - `skills/` - 技能配置
 
-## ⚠️ 当前活跃Skill版本：v5.15.3（唯一版本）
+## ⚠️ 当前活跃Skill版本：v5.15.4（唯一版本）
 
-### skill_order_to_huading_template v5.15.3
+### skill_order_to_huading_template v5.15.4
 **路径**: `skills/skill_order_to_huading_template/`
 
-**版本标识**: v5.15.3（2026-06-12）—— 所有订单处理都使用此版本，不再使用旧版本。
+**版本标识**: v5.15.4（2026-06-12）—— 所有订单处理都使用此版本，不再使用旧版本。
 
-**核心改进（v5.15.3）**：
+**核心改进（v5.15.4）**：
 - P1: 多门店 confirmed_store 跨门店泄漏修复（_confirmed_store_for fallback bug）
 - store_corrected 误触发修复 + 自学习/记忆模块硬编码全修（v5.15.2）
 - P1-1: 用户补未匹配 SKU 后保留 seq 并按序重排（避免模板错行）
@@ -85,8 +85,8 @@ User: agenthub
 
 ## 版本规则
 
-1. 所有订单处理使用 **v5.15.3**
-2. 迭代和更新只针对 **v5.15.3**
+1. 所有订单处理使用 **v5.15.4**
+2. 迭代和更新只针对 **v5.15.4**
 3. 不使用 v5.0-v5.15.0 等旧版本
 ---
 

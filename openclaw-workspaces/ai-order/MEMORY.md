@@ -2,7 +2,7 @@
 
 ## 最新Skill版本
 
-**当前活跃版本**: skill_order_to_huading_template **v5.15.3**（2026-06-12 — P1多门店confirmed_store跨门店泄漏修复）
+**当前活跃版本**: skill_order_to_huading_template **v5.15.4**（2026-06-12 — P1多门店confirmed_store跨门店泄漏修复）
 
 **路径**: `/Users/jinqianfei/openclaw-workspaces/ai-order/skills/skill_order_to_huading_template/`
 
