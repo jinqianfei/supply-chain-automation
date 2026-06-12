@@ -2,7 +2,7 @@
 
 ## 最新Skill版本
 
-**当前活跃版本**: skill_order_to_huading_template **v5.15.1**（2026-06-11 — P1审核报告修复：补SKU时保留seq+按序重排、update失败显式报错、字段兼容输出phone/address）
+**当前活跃版本**: skill_order_to_huading_template **v5.15.2**（2026-06-12 — store_corrected 误触发修复 + 自学习模块硬编码全修 + 补缺组件）
 
 **路径**: `/Users/jinqianfei/openclaw-workspaces/ai-order/skills/skill_order_to_huading_template/`
 
@@ -90,6 +90,41 @@
 ---
 
 ## 最近会话摘要
+
+### 2026-06-12 09:40 — 自学习模块 Review + 硬编码修复 + 闭环补齐
+
+**金姐指示**：review 整个工作区自学习方案完成情况，补缺 + 修硬编码
+
+**完成情况检查**：
+- 方案文件：`docs/SELF_LEARNING_MODULE_PLAN.md`
+- 发现文件在工作区根目录 `scripts/` + `config/` 下，不在 skill 目录
+- Phase 2/5 的 ✅ 标记与实际不符（分析/通知脚本存在但方案标记有误）
+
+**order_corrections 0 条诊断**：
+- 结论：**真实数据**（19 单全是单门店，用户未纠正过）
+- 发现潜在 bug：多门店 Phase B 中 `store_corrected` 对所有已确认门店都 emit
+- **修复**：新增 `_call_match_store` 对比逻辑，用户选的 ≠ 系统匹配时才 emit
+- 单门店 + 多门店两条路径都修复
+
+**补 3 个缺失组件**：
+- ✅ `submitted_by` / `corrected_by` DB 列已加
+- ✅ `scripts/history_replay.py` 历史订单回放
+- ✅ `scripts/accuracy_comparison.py` 准确率对比报告
+
+**硬编码修复（P1~P4）**：
+- P1: history_replay.py + accuracy_comparison.py 绝对路径 → `_detect_workspace()`
+- P2: notification_config.yaml user_id → `${FEISHU_ADMIN_ID:-默认值}` + sender.py 路径检测
+- P3: 新增 `config/analysis_config.yaml` 统一管理 8 处阈值
+- P4: analyze_learning_data.py `_SKILL_ROOT` 相对路径 → `_detect_workspace()`
+- launchd plist × 3 改为 `$AI_ORDER_WORKSPACE` 单点配置
+
+**产出**：
+- v5.15.2 发布（VERSION + CHANGELOG）
+- `output/self-learning-package-20260612.zip`（77KB，31 个文件）
+- 飞书文档已更新：https://feishu.cn/docx/Lo5QdVMvxoH59Ix6SL5cip4tnhe
+- Python 文件 `/Users/jinqianfei` 出现次数 = 0
+
+---
 
 ### 2026-06-11 16:40 — 阿里云迁移打包
 
@@ -416,7 +451,7 @@ tools_parse() → tools_transform() → _match_store() ⚠️用户确认 → _m
 ---
 
 ## 最后更新
-2026-06-11 11:41 GMT+8
+2026-06-12 10:00 GMT+8
 
 ### v5.14.0 工作线收尾（2026-06-11 11:30 GMT+8）
 - **全部完成**:

@@ -1,0 +1,37 @@
+# 自学习分析模块 - 阈值配置
+# 修改此文件可调整分析脚本的行为，无需改代码
+
+# ── 别名表候选分析（analyze_learning_data.py）──
+alias_candidates:
+  # 滚动时间窗口（天）
+  lookback_days: 7
+  # 同一(商品名,正确名)出现次数 ≥ 此值才纳入候选
+  min_correction_count: 3
+  # 最多返回候选数
+  max_results: 20
+
+# ── 层成功率统计（analyze_learning_data.py）──
+layer_success_rate:
+  # 最低尝试次数（低于此值的层不纳入报告）
+  min_total_attempts: 50
+
+# ── 阈值调优建议（analyze_learning_data.py）──
+threshold_tuning:
+  # 滚动时间窗口（天）
+  lookback_days: 30
+  # 最低样本量
+  min_total_count: 10
+  # 纠正率超过此值建议调阈值（百分比，如 30 = 30%）
+  correction_rate_threshold: 30
+
+# ── 每日别名汇总（daily_alias_summary.py）──
+daily_alias_summary:
+  # 汇总时间窗口（天，1 = 昨天）
+  lookback_days: 1
+  # 同一(商品名,正确名)出现次数 ≥ 此值才生成建议
+  min_correction_count: 2
+
+# ── 通知超时（notification_sender.py）──
+notification:
+  # webhook 请求超时（秒）
+  webhook_timeout_seconds: 10

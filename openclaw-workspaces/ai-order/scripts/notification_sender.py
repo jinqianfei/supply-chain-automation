@@ -20,21 +20,55 @@ import json
 import requests
 from typing import List, Dict
 
-# 添加项目根目录到 path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# ── 自动检测工作区（无硬编码路径）──
+def _detect_workspace():
+    env_ws = os.environ.get("AI_ORDER_WORKSPACE")
+    if env_ws and os.path.isdir(env_ws):
+        return env_ws
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    check = script_dir
+    for _ in range(5):
+        check = os.path.dirname(check)
+        if os.path.isdir(os.path.join(check, "config")):
+            return check
+    return os.getcwd()
+
+_WORKSPACE = _detect_workspace()
+sys.path.insert(0, _WORKSPACE)
+
+# ── 加载分析配置（用于 webhook timeout 等）──
+_ANALYSIS_CONFIG_PATH = os.path.join(_WORKSPACE, "config", "analysis_config.yaml")
+_analysis_cfg = {}
+if os.path.exists(_ANALYSIS_CONFIG_PATH):
+    with open(_ANALYSIS_CONFIG_PATH, "r", encoding="utf-8") as f:
+        _analysis_cfg = yaml.safe_load(f) or {}
+
+
+def _expand_env_vars(value: str) -> str:
+    """展开 yaml 中的 ${VAR:-default} 环境变量引用"""
+    import re
+    def _replace(match):
+        var_name = match.group(1)
+        default = match.group(3) or ""
+        return os.environ.get(var_name, default)
+    if isinstance(value, str):
+        return re.sub(r'\$\{([^}:]+)(:-([^}]*))?\}', _replace, value)
+    return value
 
 
 def load_config() -> Dict:
-    """加载通知配置"""
-    config_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "config", "notification_config.yaml"
-    )
+    """加载通知配置（支持环境变量展开）"""
+    config_path = os.path.join(_WORKSPACE, "config", "notification_config.yaml")
     if not os.path.exists(config_path):
         print(f"[ERROR] Config not found: {config_path}")
         return {}
     with open(config_path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f) or {}
+    # 展开 users 里的环境变量引用
+    for user in config.get("users", []):
+        if "user_id" in user:
+            user["user_id"] = _expand_env_vars(user["user_id"])
+    return config
 
 
 def get_recipients(config: Dict, approval_type: str) -> List[Dict]:
@@ -61,8 +95,9 @@ def send_feishu(user_id: str, message: str) -> bool:
         "content": {"text": message}
     }
 
+    timeout = _analysis_cfg.get("notification", {}).get("webhook_timeout_seconds", 10)
     try:
-        resp = requests.post(webhook, json=payload, timeout=10)
+        resp = requests.post(webhook, json=payload, timeout=timeout)
         if resp.status_code == 200:
             print(f"[OK] Feishu notification sent to {user_id}")
             return True
@@ -86,8 +121,9 @@ def send_dingtalk(user_id: str, message: str) -> bool:
         "text": {"content": message}
     }
 
+    timeout = _analysis_cfg.get("notification", {}).get("webhook_timeout_seconds", 10)
     try:
-        resp = requests.post(webhook, json=payload, timeout=10)
+        resp = requests.post(webhook, json=payload, timeout=timeout)
         if resp.status_code == 200:
             print(f"[OK] DingTalk notification sent to {user_id}")
             return True

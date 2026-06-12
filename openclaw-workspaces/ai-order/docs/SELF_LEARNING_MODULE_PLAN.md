@@ -262,38 +262,25 @@ bash scripts/ci_regression.sh
 
 **文件**：`config/notification_config.yaml`
 
-```yaml
-# 推送对象配置
-approvers:
-  alias_expansion:
-    - name: "金姐"
-      user_id: "ou_3ca0a1a1f283c774915d4656143464cc"
-      channel: "feishu"  # feishu / dingtalk
-  
-  threshold_tuning:
-    - name: "金姐"
-      user_id: "ou_3ca0a1a1f283c774915d4656143464cc"
-      channel: "feishu"
-  
-  keyword_update:
-    - name: "金姐"
-      user_id: "ou_3ca0a1a1f283c774915d4656143464cc"
-      channel: "feishu"
-  
-  cleaning_rule:
-    - name: "金姐"
-      user_id: "ou_3ca0a1a1f283c774915d4656143464cc"
-      channel: "feishu"
-  
-  new_layer:
-    - name: "金姐"
-      user_id: "ou_3ca0a1a1f283c774915d4656143464cc"
-      channel: "feishu"
+> 2026-06-12 更新：user_id 改为环境变量引用 `${FEISHU_ADMIN_ID:-默认值}`，无硬编码。
 
-# 推送频率
+```yaml
+users:
+  - user_id: "${FEISHU_ADMIN_ID:-ou_3ca0a1a1f283c774915d4656143464cc}"
+    name: "金倩菲"
+    channel: "feishu"
+    role: "admin"
+
+approvers:
+  alias_expansion:  [{ role: "admin" }]
+  threshold_tuning: [{ role: "admin" }]
+  keyword_update:   [{ role: "admin" }]
+  cleaning_rule:    [{ role: "admin" }]
+  new_layer:        [{ role: "admin" }]
+
 schedule:
-  alias_expansion: "daily_10am"  # 每天10点汇总
-  threshold_tuning: "on_discovery"  # 发现即推
+  alias_expansion: "daily_10am"
+  threshold_tuning: "on_discovery"
   keyword_update: "on_discovery"
   cleaning_rule: "on_discovery"
   new_layer: "on_discovery"
@@ -374,18 +361,19 @@ Supermemory 内网不通时的替代方案：
 
 ## 9. 实施路线图
 
-### Phase 1：采集层（✅ 已完成）
+### Phase 1：采集层（✅ 已完成 — v5.15.2 修复 store_corrected 误触发）
 - [x] EventBus 事件总线
 - [x] FeedbackCollector 反馈采集器
-- [x] 3 张数据库表
-- [x] 8/10 事件 emit 补齐
-- [x] CI 回归测试 8/8 通过
+- [x] 3 张数据库表 + submitted_by/corrected_by 列
+- [x] 10/10 事件 emit 补齐 + store_corrected 误触发修复
+- [x] CI 回归测试通过
 
-### Phase 2：分析层（✅ 已完成）
-- [x] 分析脚本 `scripts/analyze_learning_data.py`
-- [x] 每日别名表汇总 `scripts/daily_alias_summary.py`
-- [x] 通知配置 `config/notification_config.yaml`
-- [x] submitted_by 字段追踪（DB schema + adapter + collector + execute 参数）
+### Phase 2：分析层（✅ 已完成 — 阈值配置化，无硬编码）
+- [x] 分析脚本 `scripts/analyze_learning_data.py`（阈值从 analysis_config.yaml 读取）
+- [x] 每日别名表汇总 `scripts/daily_alias_summary.py`（同上）
+- [x] 通知配置 `config/notification_config.yaml`（user_id 支持环境变量）
+- [x] 阈值配置 `config/analysis_config.yaml`（新建）
+- [x] submitted_by 字段追踪（DB 列已建 + execute 参数已加）
 
 ### Phase 3：改进层（✅ 核心已完成）
 - [x] yaml 别名表文件 `field_mapping/rules/sku_aliases_auto.yaml`
@@ -396,38 +384,53 @@ Supermemory 内网不通时的替代方案：
 - [ ] 阈值调优建议逻辑（等数据积累后做）
 - [ ] 关键词词库更新逻辑（等数据积累后做）
 
-### Phase 4：验证层（🟡 部分完成）
-- [x] CI 回归测试（8/8 通过）
-- [ ] 历史订单回放脚本
-- [ ] 准确率对比报告
+### Phase 4：验证层（✅ 已完成）
+- [x] CI 回归测试
+- [x] 历史订单回放脚本 `scripts/history_replay.py`（无硬编码路径）
+- [x] 准确率对比报告 `scripts/accuracy_comparison.py`（无硬编码路径）
 
-### Phase 5：通知机制（✅ 脚本已完成）
-- [x] 通知发送脚本 `scripts/notification_sender.py`（支持飞书/钉钉）
-- [ ] cron 定时任务配置（迁移到服务器后配）
+### Phase 5：通知机制（✅ 已完成）
+- [x] 通知发送脚本 `scripts/notification_sender.py`（支持飞书/钉钉，无硬编码路径）
+- [x] launchd 定时任务配置（3个 plist，路径改为 $AI_ORDER_WORKSPACE 单点配置）
 - [ ] 多用户通知路由（迁移后完善）
 
 ---
 
-## 10. 文件清单
+## 10. 文件清单（2026-06-12 更新）
 
-### 已有文件（不改）
-- events/bus.py
-- learn/collector.py
-- learn/adapter.py
-- learn/schema.sql
+### 采集层（已完成）
+- `events/bus.py` — EventBus 事件总线
+- `learn/collector.py` — FeedbackCollector（含 v5.15.2 store_corrected 修复）
+- `learn/adapter.py` — 事件 → DB 记录适配器
+- `learn/schema.sql` — 建表 SQL（含 submitted_by/corrected_by）
 
-### 待新建文件
-- scripts/analyze_learning_data.py
-- scripts/daily_alias_summary.py
-- config/notification_config.yaml
-- field_mapping/rules/sku_aliases_auto.yaml
-- field_mapping/rules/field_aliases_auto.yaml
+### 分析层（已完成）
+- `scripts/analyze_learning_data.py` — 分析脚本（阈值从 yaml 读取）
+- `scripts/daily_alias_summary.py` — 每日别名汇总
+- `config/analysis_config.yaml` — 阈值配置（新建）
 
-### 待修改文件
-- tools/_sku_mapper.py（Layer 0 多 SKU 修复 + yaml 加载）
-- tools/_field_transformer.py（yaml 字段别名加载）
-- __init__.py（submitted_by 追踪）
+### 改进层（核心已完成）
+- `field_mapping/rules/sku_aliases_auto.yaml` — SKU 别名表（自动维护）
+- `field_mapping/rules/field_aliases_auto.yaml` — 字段别名表（自动维护）
+- `tools/_sku_mapper.py` — 已加 _load_yaml_sku_aliases
+- `tools/_field_transformer.py` — 已加 _merge_auto_aliases
+
+### 验证层（已完成）
+- `scripts/history_replay.py` — 历史订单回放（无硬编码路径）
+- `scripts/accuracy_comparison.py` — 准确率对比（无硬编码路径）
+- `scripts/ci_regression.sh` — CI 回归测试
+- `scripts/test_sku_mapper_regression.py` — SKU 回归测试
+- `scripts/test_event_pipeline.py` — 事件管道测试
+
+### 通知机制（已完成）
+- `scripts/notification_sender.py` — 通知发送（支持飞书/钉钉，无硬编码）
+- `config/notification_config.yaml` — 通知配置（user_id 支持环境变量）
+- launchd plist × 3（路径改为 $AI_ORDER_WORKSPACE 单点配置）
+
+### 版本文件
+- `VERSION` — 5.15.2
+- `CHANGELOG.md` — 含 v5.15.2 条目
 
 ---
 
-*AI建单助手 | 2026-06-11 14:44 GMT+8*
+*AI建单助手 | 2026-06-12 10:10 GMT+8*

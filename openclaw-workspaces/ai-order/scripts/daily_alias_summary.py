@@ -16,11 +16,32 @@
 import os
 import sys
 import datetime
+import yaml
 
-# 添加 skill 根目录到 path
-_SKILL_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "skills", "skill_order_to_huading_template")
+# ── 自动检测工作区（无硬编码路径）──
+def _detect_workspace():
+    env_ws = os.environ.get("AI_ORDER_WORKSPACE")
+    if env_ws and os.path.isdir(env_ws):
+        return env_ws
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    check = script_dir
+    for _ in range(5):
+        check = os.path.dirname(check)
+        if os.path.isdir(os.path.join(check, "skills")):
+            return check
+    return os.getcwd()
+
+_WORKSPACE = _detect_workspace()
+_SKILL_ROOT = os.path.join(_WORKSPACE, "skills", "skill_order_to_huading_template")
 if _SKILL_ROOT not in sys.path:
     sys.path.insert(0, _SKILL_ROOT)
+
+# ── 加载分析阈值配置 ──
+_ANALYSIS_CONFIG_PATH = os.path.join(_WORKSPACE, "config", "analysis_config.yaml")
+_analysis_cfg = {}
+if os.path.exists(_ANALYSIS_CONFIG_PATH):
+    with open(_ANALYSIS_CONFIG_PATH, "r", encoding="utf-8") as f:
+        _analysis_cfg = yaml.safe_load(f) or {}
 
 try:
     from db.connection import get_default_db_config
@@ -41,7 +62,11 @@ def get_db_connection():
 
 
 def daily_alias_summary():
-    """每日别名表汇总"""
+    """每日别名表汇总（参数从 analysis_config.yaml 读取）"""
+    cfg = _analysis_cfg.get("daily_alias_summary", {})
+    lookback_days = cfg.get("lookback_days", 1)
+    min_count = cfg.get("min_correction_count", 2)
+
     conn = get_db_connection()
     if not conn:
         return None
@@ -52,12 +77,12 @@ def daily_alias_summary():
             SELECT entity_name, corrected_value, COUNT(*) as cnt
             FROM order_corrections
             WHERE correction_type = 'sku'
-              AND created_at >= CURRENT_DATE - INTERVAL '1 day'
+              AND created_at >= CURRENT_DATE - INTERVAL '%s days'
               AND created_at < CURRENT_DATE
             GROUP BY entity_name, corrected_value
-            HAVING COUNT(*) >= 2
+            HAVING COUNT(*) >= %s
             ORDER BY cnt DESC
-        """)
+        """, (lookback_days, min_count))
         rows = cur.fetchall()
         cur.close()
 
