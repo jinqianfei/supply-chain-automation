@@ -1,3 +1,14 @@
+## [5.15.3] - 2026-06-12
+
+### Fixed
+- **P1: 多门店 confirmed_store 跨门店泄漏 bug**
+  - 问题：多门店订单中，当 AI 只传 1 个 confirmed_store 时，`_confirmed_store_for` 的 fallback 循环会把门店A的确认信息错误地返回给门店B
+  - 根因：`_store_key` fallback 检查 `store.get("_store_key") == store_key` 在 store_key 匹配时返回了错误的门店（当 confirmed_stores 只含 1 个条目时）
+  - 修复：移除 `_store_key` fallback，仅保留精确 key 查找 + `store_name_submitted` 别名查找
+  - Phase B 增加 `_confirmed_store_for` fallback + 日志告警，避免直接 skip
+  - 新增测试：tests/test_p1_multi_store_fix.py（4 个用例覆盖隔离/别名/批量/别名匹配）
+  - CI 回归：53/53 SKU 测试通过，无回归
+
 ## [5.15.2] - 2026-06-12
 
 ### Fixed
