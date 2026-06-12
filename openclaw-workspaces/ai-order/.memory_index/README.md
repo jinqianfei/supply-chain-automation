@@ -8,8 +8,8 @@
 
 ```bash
 # 用 reindex_memory.py 试搜
-python3 scripts/reindex_memory.py --query "version_check"
-python3 scripts/reindex_memory.py --query "断档"
+python3 memory_system/scripts/reindex.py --query "version_check"
+python3 memory_system/scripts/reindex.py --query "断档"
 ```
 
 ## 索引范围

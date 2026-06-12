@@ -1,0 +1,990 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 6d8d54d..37d6893 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -5,6 +5,51 @@ All notable changes to this skill will be documented in this file.
+ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+ 
++## [5.9.0] - 2026-06-05
++
++### Added
++- **技术锁**：`OrderToHuadingTemplate` 类通过 `__getattribute__` 拦截内部函数调用
++- 防止 AI 跳过 `execute()` 主入口直接调用 `_match_store()` / `_match_sku()` 等内部函数
++- 公开接口白名单机制：`execute()` / `parse_only()` / `validate_db()` / `get_version()`
++
++### Changed
++- 所有内部方法（`_` 前缀）通过 `__内部初始化__` 字典存储，对外不可见
++- AI 必须通过 `skill.execute()` 入口调用
++
++### Notes
++- 本次修改的对话背景：5.9.1 增量 patch（仅 bump VERSION）被 reset 撤销，但 5.9.0 主体（技术锁）保留
++- SKILL.md 头 5.9 与 VERSION/CHANGELOG 此前未同步，本次补齐
++
++### Phase 1 — 自适应学习系统 (2026-06-08)
++
++#### Added
++- **`events/` 事件总线**：极简进程内 EventBus（40 行，零外部依赖），支持 on/off/emit/clear
++- **`learn/` 反馈采集器**：`FeedbackCollector` 订阅 10 个事件并写入数据库
++  - `order_feedback` 主表（订单级处理反馈）
++  - `order_corrections` 子表（结构化用户纠正记录）
++  - `layer_success_rate` 统计表（动态计算 5+6 层匹配成功率）
++  - 3 个 view：`v_daily_feedback_stats` / `v_layer_success_rate`
++- **`scripts/version_check.sh`**：启动时核对 VERSION/SKILL.md/CHANGELOG 三处版本号一致
++- **`scripts/test_event_pipeline.py`**：4 项端到端测试（EventBus / Collector / DB 写入 / 模块集成）
++
++#### Changed
++- **`__init__.py`**：埋入 6 个 `EventBus.emit()` 调用（4 个事件 × 多门店/单门店两处）
++  - `store_confirm_needed`（门店需确认）
++  - `store_confirmed`（门店已确认）
++  - `order_complete`（订单完成）
++  - `user_modified`（用户修改字段）
++- **`__init__.py` 顶部**：增加 EventBus 懒加载导入 + `try/except ImportError` 保护
++- **`__init__.py` execute() 入口**：生成 `order_session_id` (uuid4) + `_started_ms` 计时
++- **数据库 `order_feedback` 表**：新增 `data_source TEXT` 列（追踪数据来源）
++- **`version_check.sh`**：从 `grep -P` 改为 `grep -E`（兼容 BSD grep，macOS 默认）
++- **SKILL.md 头**：版本号从 `5.9` 修正为 `5.9.0`，与 VERSION/CHANGELOG 对齐
++
++#### Noted
++- 本次只做 Phase 1（数据采集），Phase 2（自动别名学习） / Phase 3（健康度评估）未实施
++- 6 个 emit 中，store_confirm_needed / store_confirmed 各 2 处（多门店版+单门店版），order_complete / user_modified 各 1 处
++
++---
++
+ ## [5.8.0] - 2026-06-01
+ 
+ ### Added
+diff --git a/SKILL.md b/SKILL.md
+index a43542b..9033001 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -24,7 +24,7 @@ metadata:
+ 
+ **Description**: 将客户订单（Excel/图片/PDF/文字/Word）转换为华鼎31字段出库单模板的完整流程。
+ 
+-**Version**: 5.9（2026-06-05 — 技术锁：__getattribute__ 拦截内部函数调用，防止AI跳过主入口）
++**Version**: 5.9.0（2026-06-05 — 技术锁：__getattribute__ 拦截内部函数调用，防止AI跳过主入口）
+ 
+ **架构**：工具层 + 数据库层 + 字段映射规则库 三层分离
+ 
+@@ -453,14 +453,15 @@ Step 5: _generate_multi_store_template()
+ 
+ ---
+ 
+-## 7. 数据库配置
++## 7. 数据库配置（2026-06-08 已迁移至 Neon 云端）
+ 
+ ```python
+ db_config = {
+-    "host": "localhost",
++    "host": "agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com",
+     "port": 5432,
+-    "database": "neo",  # 注意：不是 neondb
+-    "user": "jinqianfei"
++    "database": "neo",
++    "user": "agenthub"
++    # 密码通过环境变量 DB_PASSWORD 或 .env 文件读取
+ }
+ ```
+ 
+@@ -473,14 +474,243 @@ db_config = {
+ 
+ ---
+ 
+-## 8. 调用示例
++## 8. Phase 1：反馈采集系统（自适应学习）⭐ 2026-06-08 新增
++
++### 8.1 概述
++
++**目的**：收集订单处理过程中的用户反馈和纠正数据，为后续算法优化提供数据支撑。
++
++**核心组件**：
++- `events/` 事件总线（40行，零依赖）
++- `learn/` 反馈采集器（订阅 10 个事件）
++
++### 8.2 事件类型
++
++| 事件名 | 触发时机 | 采集数据 |
++|--------|----------|----------|
++| `store_confirm_needed` | 门店匹配完成，待用户确认 | 门店名、候选列表、相似度 |
++| `store_confirmed` | 用户确认门店匹配 | 确认的门店、确认时间 |
++| `store_corrected` | 用户纠正门店匹配 | 原始匹配、用户修正 |
++| `sku_confirm_needed` | SKU映射完成，待用户确认 | 商品名、匹配结果、置信度 |
++| `sku_confirmed` | 用户确认SKU映射 | 确认的SKU、确认时间 |
++| `sku_corrected` | 用户纠正SKU映射 | 原始匹配、用户修正 |
++| `order_complete` | 订单处理完成（生成Excel）| 订单ID、完成时间、处理结果 |
++| `order_cancelled` | 用户取消订单处理 | 取消原因、取消时间 |
++| `user_modified` | 用户手动修改映射结果 | 修改字段、修改前/后值 |
++| `alert_raised` | 触发置信度告警 | 告警类型、商品名、置信度 |
++
++### 8.3 数据库表
++
++#### order_feedback（订单级反馈）
++
++| 字段 | 类型 | 说明 |
++|------|------|------|
++| `id` | SERIAL | 主键 |
++| `session_id` | VARCHAR | 会话ID |
++| `order_input_hash` | VARCHAR | 订单输入指纹 |
++| `owner_code` | VARCHAR | 货主ID |
++| `store_confirmed` | BOOLEAN | 门店是否确认 |
++| `store_corrected` | BOOLEAN | 门店是否被纠正 |
++| `sku_confirmed` | BOOLEAN | SKU是否确认 |
++| `sku_corrected` | BOOLEAN | SKU是否被纠正 |
++| `confidence` | NUMERIC | 整体置信度 |
++| `data_source` | TEXT | 数据来源（"excel"/"image"/"pdf"/"text"）|
++| `created_at` | TIMESTAMP | 创建时间 |
++
++#### order_corrections（结构化纠正记录）
++
++| 字段 | 类型 | 说明 |
++|------|------|------|
++| `id` | SERIAL | 主键 |
++| `feedback_id` | INTEGER | 关联 order_feedback |
++| `correction_type` | VARCHAR | 纠正类型（"store"/"sku"）|
++| `original_value` | VARCHAR | 原始值 |
++| `corrected_value` | VARCHAR | 纠正后值 |
++| `layer` | VARCHAR | 匹配层（Layer 0-4）|
++| `reason` | TEXT | 纠正原因 |
++| `created_at` | TIMESTAMP | 创建时间 |
++
++#### layer_success_rate（匹配成功率）
++
++| 字段 | 类型 | 说明 |
++|------|------|------|
++| `id` | SERIAL | 主键 |
++| `shipper_id` | VARCHAR | 货主ID |
++| `layer` | VARCHAR | 匹配层（Layer 0-4）|
++| `total_attempts` | INTEGER | 总尝试次数 |
++| `success_count` | INTEGER | 成功次数 |
++| `auto_confirm_count` | INTEGER | 自动确认次数 |
++| `manual_confirm_count` | INTEGER | 手动确认次数 |
++| `correction_count` | INTEGER | 纠正次数 |
++| `updated_at` | TIMESTAMP | 更新时间 |
++
++### 8.4 调用方式
++
++```python
++# 触发事件（自动执行，无需手动调用）
++# 订单完成时自动触发
++EventBus.emit("order_complete", {
++    "session_id": "xxx",
++    "order_input_hash": "xxx",
++    "owner_code": "HZ2024091100001",
++    "item_count": 7,
++    "confidence": 0.96
++})
++```
++
++---
++
++## 9. Phase 2：自动化守护系统 ⭐ 2026-06-08 新增
++
++### 9.1 概述
++
++**目的**：防止记忆断档，确保系统稳定运行，实现 7×24 小时无人值守。
++
++**核心组件**：
++- `scripts/check_continuity.sh` — 断档检测
++- `scripts/daily_wrap.sh` — 每日 10:00 日结
++- `scripts/startup_check.py` — 4 项启动自检
++- launchd 调度（macOS 原生）
++
++### 9.2 断档检测
++
++| 状态 | 定义 | 动作 |
++|------|------|------|
++| OK | 最新日志 < 24h | 正常 |
++| WARN | 24-72h | 飞书告警 |
++| P0 | > 72h | 飞书 P0 告警 + 阻断启动 |
++
++**检查命令**：
++```bash
++bash scripts/check_continuity.sh
++```
++
++### 9.3 强制日结
++
++- **时间**：每日 10:00（由老板指定）
++- **内容**：总结昨天数据
++- **输出**：`/tmp/daily_wrap_YYYY-MM-DD.md`
++- **调度**：launchd（macOS 原生）
++
++**日结内容**：
++1. 昨日订单处理统计（成功/失败/取消）
++2. 匹配成功率趋势
++3. 纠正数据摘要
++4. 待处理 PENDING
++
++### 9.4 启动 4 项自检
++
++每次启动 Skill 时自动检查：
++
++| # | 检查项 | 失败处理 |
++|---|--------|----------|
++| 1 | version_check（三处一致）| 阻断任务 |
++| 2 | git_clean（无未提交重要修改）| 警告 |
++| 3 | memory_fresh（MEMORY.md < 7 天）| 警告 |
++| 4 | no_pending（无紧急项超 24h）| 警告 |
++
++**检查命令**：
++```bash
++python3 scripts/startup_check.py
++```
++
++### 9.5 launchd 调度
++
++已注册任务：
++- `com.ai-order.daily-wrap` — 每日 10:00
++- `com.ai-order.phase3-maintenance` — 每周日 03:00
++
++---
++
++## 10. Phase 3：智能分析系统 ⭐ 2026-06-08 新增
++
++### 10.1 概述
++
++**目的**：自动化维护记忆索引和质量，实现记忆系统的自我进化。
++
++**核心组件**：
++- `scripts/reindex_memory.py` — 自动 reindex 索引
++- `scripts/extract_memory.py` — 自动提取摘要
++- `scripts/check_memory_quality.py` — 4W 质量检查
++- `scripts/phase3_maintenance.sh` — 每周全套维护
++
++### 10.2 自动 reindex
++
++- **触发**：每次 `phase3_maintenance.sh` 执行
++- **索引范围**：`skills/` + `docs/` + `memory/` + `scripts/`
++- **索引统计**：103 文件 / 8650 关键词
++- **命令**：
++```bash
++python3 scripts/reindex_memory.py --build
++python3 scripts/reindex_memory.py --check
++python3 scripts/reindex_memory.py --query "记忆系统"
++```
++
++### 10.3 自动提取摘要
++
++- **触发**：每次 SESSION_END 执行
++- **提取内容**：
++  - session 日志（最近 7 天）
++  - git commit（最近 30 天）
++  - PENDING.md 未完成项
++- **输出**：替换 MEMORY.md「最近会话摘要」
++- **命令**：
++```bash
++python3 scripts/extract_memory.py --output memory/MEMORY.md
++```
++
++### 10.4 4W 质量检查
++
++每条记忆必须带 4W：
++
++| W | 含义 | 缺失后果 |
++|---|------|----------|
++| **When** | 绝对日期 + 相对时间 | 不知道"什么时候的事" |
++| **What** | 客观事实 | 不知道"发生了什么" |
++| **Why** | 触发原因 | 不知道"为什么" |
++| **Witness** | 证据（git sha / 文件 / 数据）| 无法验证真假 |
++
++**质量分计算**：
++```
++quality = (has_when + has_what + has_why + has_witness) / 4
++       × (verified_recently ? 1.0 : 0.5)
++       × (has_evidence ? 1.0 : 0.7)
++```
++
++**分档标准**：
++| 质量分 | 等级 |
++|--------|------|
++| ≥ 0.8 | ✅ 高 |
++| 0.5-0.8 | ⚠️ 中 |
++| < 0.5 | ❌ 低（strict 模式退出非零）|
++
++**命令**：
++```bash
++python3 scripts/check_memory_quality.py           # 检查所有
++python3 scripts/check_memory_quality.py --strict  # 严格模式（quality<0.5 退出非零）
++python3 scripts/check_memory_quality.py memory/MEMORY.md  # 检查单文件
++```
++
++### 10.5 每周全套维护
++
++**命令**：`bash scripts/phase3_maintenance.sh`
++
++**执行内容**：
++1. reindex_memory.py --build（重建索引）
++2. extract_memory.py（提取摘要）
++3. check_memory_quality.py --strict（4W 检查）
++4. 周归档（14+ 天日志移到 archive/）
++
++---
++
++## 11. 调用示例
+ 
+ ```python
+ from skills.skill_order_to_huading_template import OrderToHuadingTemplate
+ 
+ skill = OrderToHuadingTemplate(db_config={
+-    "host": "localhost", "port": 5432,
+-    "database": "neo", "user": "jinqianfei"
++    "host": "agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com", "port": 5432,
++    "database": "neo", "user": "agenthub"
+ })
+ 
+ # Excel订单
+@@ -506,7 +736,7 @@ if result.get("need_store_confirm"):
+ 
+ ---
+ 
+-## 9. 返回结果说明
++## 12. 返回结果说明
+ 
+ | 字段                   | 说明                     |
+ | ---------------------- | ------------------------ |
+@@ -524,7 +754,7 @@ if result.get("need_store_confirm"):
+ 
+ ---
+ 
+-## 10. 安全守则
++## 13. 安全守则
+ 
+ 1. **Skill安装审核** - 安装任何 Skill 前，必须使用 clawhub-skill-vetting 进行安全审核
+ 2. **不读取密码** - 不读取电脑上的任何密码/密钥信息
+@@ -534,9 +764,9 @@ if result.get("need_store_confirm"):
+ 
+ ---
+ 
+-## 11. 配置检查清单
++## 14. 配置检查清单
+ 
+-- [X] **数据库连接** — 必填（db_config），使用 localhost:5432/neo
++- [X] **数据库连接** — 必填（db_config），使用 Neon 云端 agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com:5432/neo
+ - [X] **product_sku 表** — SKU主表（当前1832条）
+ - [X] **product_name_alias 表** — 别名映射表（当前30条）
+ - [X] **store_list 表** — 门店数据（当前~714条）
+@@ -595,7 +825,7 @@ AI 在执行任何 Skill 操作前，必须先读取并检查 `TOOLS.md` 配置
+ 
+ ---
+ 
+-## 12. 完整版本历史
++## 15. 完整版本历史
+ 
+ | 版本 | 日期       | 变更                                                                                                                                           |
+ | ---- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+diff --git a/VERSION b/VERSION
+index 11d9efa..b3d91f9 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-5.8.0
++5.9.0
+diff --git a/__init__.py b/__init__.py
+index 068f05a..6665319 100644
+--- a/__init__.py
++++ b/__init__.py
+@@ -10,7 +10,21 @@ skill-order-to-huading-template
+ 
+ import os
+ import re
++import datetime
++import time
++import uuid
+ from typing import Dict, Any, Optional, Union, List, Tuple
++
++# ── v5.9.0 Phase 1：事件总线 + 反馈采集器（懒加载，单例）────────
++try:
++    from events.bus import EventBus
++    from learn.collector import init_feedback_collector, get_feedback_collector
++    _HAS_EVENT_BUS = True
++except ImportError:
++    _HAS_EVENT_BUS = False
++    EventBus = None
++    init_feedback_collector = None
++    get_feedback_collector = None
+ class OrderSkillError(Exception):
+     """订单映射Skill专用异常"""
+     def __init__(self, code: str, message: str, detail: str = ""):
+@@ -233,6 +247,105 @@ class OrderToHuadingTemplate:
+     # 内部初始化方法（在 __init__ 期间允许调用）
+     __内部初始化__ = ['_load_warehouse_mapping', '_load_field_mapping', '_check_db_connection', '_init_db_repos']
+     
++    # ========== 必填配置项 ==========
++    REQUIRED_CONFIG = {
++        "db_config": {
++            "required": True,
++            "description": "数据库连接配置",
++            "fields": {
++                "host": {"type": "string", "default": "localhost", "description": "数据库主机地址"},
++                "port": {"type": "int", "default": "5432", "description": "数据库端口"},
++                "database": {"type": "string", "default": "neo", "description": "数据库名称"},
++                "user": {"type": "string", "default": "jinqianfei", "description": "数据库用户名"},
++                "password": {"type": "string", "default": "", "description": "数据库密码（必填）"}
++            }
++        }
++    }
++    
++    # ========== 配置检查 ==========
++    @classmethod
++    def check_config(cls, db_config: Dict[str, Any] = None) -> Dict[str, Any]:
++        """
++        检查Skill配置是否完整，返回配置状态和缺失项
++        
++        Returns:
++            Dict: {
++                "ready": bool,           # 是否可以运行
++                "missing": [field, ...], # 缺失的配置项
++                "config_template": {},   # 完整配置模板
++                "setup_guide": string    # 配置指引
++            }
++        """
++        missing = []
++        
++        # 检查 db_config
++        if not db_config:
++            missing.append("db_config")
++        else:
++            if not db_config.get("password"):
++                missing.append("db_config.password")
++        
++        setup_guide = """
++=== Skill 配置指引 ===
++
++【订单转华鼎出库单模板】需要以下配置：
++
++1️⃣ 数据库配置（db_config）- 必填
++
++  方式一：直接传入 db_config 参数
++    skill = OrderToHuadingTemplate(
++        db_config={
++            "host": "localhost",
++            "port": 5432,
++            "database": "neo",
++            "user": "your_username",
++            "password": "your_password"
++        }
++    )
++
++  方式二：通过环境变量
++    export DB_HOST=localhost
++    export DB_PORT=5432
++    export DB_NAME=neo
++    export DB_USER=your_username
++    export DB_PASSWORD=your_password
++
++  方式三：通过 .env 文件（项目根目录）
++    DB_HOST=localhost
++    DB_PORT=5432
++    DB_NAME=neo
++    DB_USER=your_username
++    DB_PASSWORD=your_password
++
++【配置模板】
++    db_config = {
++        "host": "localhost",     # 数据库主机
++        "port": 5432,            # 数据库端口
++        "database": "neo",        # 数据库名称（不是 neondb）
++        "user": "jinqianfei",    # 数据库用户名
++        "password": "***"        # 数据库密码（必填）
++    }
++
++=== 配置完成后再使用 ===
++"""
++        
++        config_template = {
++            "db_config": {
++                "host": os.getenv("DB_HOST", "localhost"),
++                "port": int(os.getenv("DB_PORT", "5432")),
++                "database": os.getenv("DB_NAME", "neo"),
++                "user": os.getenv("DB_USER", "jinqianfei"),
++                "password": os.getenv("DB_PASSWORD", "") or "（未配置）"
++            }
++        }
++        
++        return {
++            "ready": len(missing) == 0,
++            "missing": missing,
++            "config_template": config_template,
++            "setup_guide": setup_guide.strip()
++        }
++    
+     def __getattribute__(self, name: str):
+         """拦截内部工具函数调用，防止AI跳过主入口"""
+         # 允许所有 dunder 方法和属性
+@@ -280,11 +393,11 @@ class OrderToHuadingTemplate:
+         # 如果db_config为空，尝试从环境变量读取
+         if not db_config:
+             db_config = {
+-                "host": os.getenv("DB_HOST", "localhost"),
++                "host": os.getenv("DB_HOST", "agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com"),
+                 "port": int(os.getenv("DB_PORT", "5432")),
+                 "database": os.getenv("DB_NAME", "neo"),
+-                "user": os.getenv("DB_USER", "jinqianfei"),
+-                "password": os.getenv("DB_PASSWORD", "")
++                "user": os.getenv("DB_USER", "agenthub"),
++                "password": os.getenv("DB_PASSWORD", "<REDACTED-NEON-PASSWORD>")
+             }
+             
+             # 如果密码为空，尝试读取 .env 文件
+@@ -306,8 +419,16 @@ class OrderToHuadingTemplate:
+                     except Exception:
+                         pass
+         
+-        if not db_config.get("password"):
+-            raise ValueError("db_config 或 DB_PASSWORD 环境变量是必填的")
++        # 检查配置是否完整
++        config_status = self.check_config(db_config)
++        if not config_status["ready"]:
++            missing = config_status["missing"]
++            guide = config_status["setup_guide"]
++            raise OrderSkillError(
++                code="E401",
++                message=f"Skill配置不完整，缺少：{', '.join(missing)}",
++                detail=guide
++            )
+ 
+         # 移除 SOCKS 代理，避免 LLM 调用时出错（socksio 未安装）
+         for k in ["SOCKS_PROXY", "ALL_PROXY", "HTTPS_PROXY", "HTTP_PROXY"]:
+@@ -336,7 +457,7 @@ class OrderToHuadingTemplate:
+         self.output_dir = output_dir or "./output"
+         
+         # 从数据库加载仓库编码映射
+-        self.warehouse_code_map = self._load_warehouse_mapping()
++        self.warehouse_code_map = object.__getattribute__(self, '_load_warehouse_mapping')()
+         
+         # 确保输出目录存在
+         os.makedirs(self.output_dir, exist_ok=True)
+@@ -888,7 +1009,7 @@ class OrderToHuadingTemplate:
+             return None
+         
+         # 如果OCR结果已经是结构化数据，直接规范化
+-        return self._normalize_extracted_data(ocr_result)
++        return object.__getattribute__(self, '_normalize_extracted_data')(ocr_result)
+     
+     def _parse_pdf(self, pdf_path: str) -> Optional[Dict]:
+         """
+@@ -923,14 +1044,14 @@ class OrderToHuadingTemplate:
+             return None
+         
+         # 如果OCR结果已经是结构化数据，直接规范化
+-        return self._normalize_extracted_data(pdf_ocr_result)
++        return object.__getattribute__(self, '_normalize_extracted_data')(pdf_ocr_result)
+     
+     def _parse_text(self, text: str) -> Optional[Dict]:
+         """
+         从纯文本/粘贴内容中解析订单数据
+         支持多种常见格式
+         """
+-        return self._normalize_extracted_data({"raw_text": text})
++        return object.__getattribute__(self, '_normalize_extracted_data')({"raw_text": text})
+     
+     def _normalize_extracted_data(self, extracted: Dict) -> Optional[Dict]:
+         """
+@@ -941,7 +1062,7 @@ class OrderToHuadingTemplate:
+         
+         # 如果是纯文本，先解析
+         if raw_text:
+-            return self._parse_raw_text(raw_text)
++            return object.__getattribute__(self, '_parse_raw_text')(raw_text)
+         
+         # ========== Step 1: 字段名标准化 ==========
+         normalized_fields, norm_warnings = self.normalize_ai_result(extracted)
+@@ -1116,7 +1237,7 @@ class OrderToHuadingTemplate:
+                 import pandas as pd
+                 df = pd.read_excel(content, header=None)
+                 # 将Excel转为文本描述
+-                content = self._excel_to_text(df)
++                content = object.__getattribute__(self, '_excel_to_text')(df)
+             
+             # 构建提示词
+             prompt = self.LLM_PARSE_PROMPT.format(content=content[:8000] if len(content) > 8000 else content)
+@@ -1500,20 +1621,29 @@ class OrderToHuadingTemplate:
+             - extracted_from: 输入来源（excel/image/pdf/text）
+             - message: 消息
+         """
++        # ── v5.9.0 Phase 1：本次调用的 session_id + 反馈采集器初始化 ─────
++        order_session_id = str(uuid.uuid4())
++        _started_ms = int(time.time() * 1000)
++        if _HAS_EVENT_BUS and get_feedback_collector() is None:
++            try:
++                init_feedback_collector(self.db_config)
++            except Exception as _e:
++                print(f"[WARN] init_feedback_collector failed: {_e}", flush=True)
++
+         try:
+             # 自动检测类型
+             if order_type == "auto":
+-                order_type = self._detect_input_type(order_input)
++                order_type = object.__getattribute__(self, '_detect_input_type')(order_input)
+             
+             # 解析订单数据
+             if order_type == "image":
+                 if ocr_result:
+                     # 有OCR结果，直接处理
+-                    order_data = self._handle_ocr_result(ocr_result)
++                    order_data = object.__getattribute__(self, '_handle_ocr_result')(ocr_result)
+                     extracted_from = "image"
+                 elif order_input:
+                     # 没有OCR结果，检查图片文件
+-                    parse_result = self._parse_image(order_input)
++                    parse_result = object.__getattribute__(self, '_parse_image')(order_input)
+                     if parse_result and parse_result.get("__need_ocr__"):
+                         # 返回需要OCR的标记
+                         return {
+@@ -1531,11 +1661,11 @@ class OrderToHuadingTemplate:
+             elif order_type == "pdf":
+                 if ocr_result:
+                     # 有OCR结果，直接处理
+-                    order_data = self._handle_pdf_ocr_result(ocr_result)
++                    order_data = object.__getattribute__(self, '_handle_pdf_ocr_result')(ocr_result)
+                     extracted_from = "pdf"
+                 elif order_input:
+                     # 没有OCR结果，检查PDF文件
+-                    parse_result = self._parse_pdf(order_input)
++                    parse_result = object.__getattribute__(self, '_parse_pdf')(order_input)
+                     if parse_result and parse_result.get("__need_pdf_ocr__"):
+                         # 返回需要PDF OCR的标记
+                         return {
+@@ -1555,14 +1685,14 @@ class OrderToHuadingTemplate:
+                 try:
+                     llm_result = self.parse_with_llm(order_input, content_type="text")
+                     if llm_result.get("success"):
+-                        order_data = self._normalize_llm_result(llm_result)
++                        order_data = object.__getattribute__(self, '_normalize_llm_result')(llm_result)
+                         order_data["_parse_method"] = "llm"
+                         order_data["_llm_confidence"] = llm_result.get("confidence", 0)
+                     else:
+                         raise ValueError(f"LLM解析失败: {llm_result.get('error', '未知错误')}")
+                 except Exception as llm_err:
+                     # LLM 解析失败，fallback 到正则解析
+-                    order_data = self._parse_text(order_input)
++                    order_data = object.__getattribute__(self, '_parse_text')(order_input)
+                     if order_data:
+                         order_data["_parse_method"] = "regex_fallback"
+                         order_data["_parse_error"] = str(llm_err)
+@@ -1634,6 +1764,18 @@ class OrderToHuadingTemplate:
+                     # 门店匹配：用户已确认门店时跳过匹配流程
+                     if confirmed_store:
+                         si = confirmed_store
++                        # v5.9.0 Phase 1：emit 门店已确认事件
++                        if _HAS_EVENT_BUS:
++                            EventBus.emit("store_confirmed", {
++                                "session_id": order_session_id,
++                                "timestamp": time.time(),
++                                "store_name_submitted": store_name_for_match,
++                                "selected_store": si,
++                                "from_candidates": bool(si.get("store_code")),
++                                "top_similarity": float(si.get("similarity", 1.0) or 1.0),
++                                "match_type": si.get("match_type", "unknown"),
++                                "user_response_text": "user_provided_confirmed_store",
++                            })
+                     else:
+                         si = _call_match_store(
+                             store_name=store_name_for_match,
+@@ -1653,6 +1795,23 @@ class OrderToHuadingTemplate:
+                     if si.get("need_confirm") or si.get("candidates"):
+                         top_c = si["candidates"][0] if si.get("candidates") else {}
+                         top_sim = top_c.get("similarity", 0)
++                        # v5.9.0 Phase 1：emit 门店需要确认事件
++                        if _HAS_EVENT_BUS:
++                            EventBus.emit("store_confirm_needed", {
++                                "session_id": order_session_id,
++                                "timestamp": time.time(),
++                                "store_name_submitted": store_name_for_match,
++                                "matched_store": {
++                                    "store_code": si.get("store_code", top_c.get("store_code", "")),
++                                    "store_name": si.get("store_name", top_c.get("store_name", "")),
++                                    "owner_code": si.get("owner_code", top_c.get("owner_code", "")),
++                                },
++                                "candidates": si.get("candidates", []),
++                                "top_similarity": top_sim,
++                                "match_type": si.get("match_type", top_c.get("match_type", "")),
++                                "match_layer": si.get("match_type", top_c.get("match_type", "")),
++                                "need_customer_hint": False,
++                            })
+                         return {
+                             "success": False,
+                             "need_store_confirm": True,
+@@ -1711,7 +1870,7 @@ class OrderToHuadingTemplate:
+                         }
+ 
+                     owner_code = si.get("owner_code", self.shipper_id)
+-                    sku_results, unmatched_items = self._match_sku(store_items, owner_code)
++                    sku_results, unmatched_items = object.__getattribute__(self, '_match_sku')(store_items, owner_code)
+ 
+                     all_store_results.append({
+                         "store_info": si,
+@@ -1723,16 +1882,46 @@ class OrderToHuadingTemplate:
+ 
+             else:
+                 # 【单门店模式】
++                # 从 stores 字典中提取单个门店信息（如果存在）
++                stores_dict = order_data.get("stores", {})
++                if stores_dict:
++                    # 取第一个门店
++                    store_key = list(stores_dict.keys())[0]
++                    store_data = stores_dict[store_key]
++                    store_name_val = store_data.get("store_name", store_key)
++                    phone_val = store_data.get("phone")
++                    address_val = store_data.get("address")
++                    contact_val = store_data.get("contact_person")
++                    shipper_name_val = store_data.get("shipper_name", "")
++                else:
++                    store_name_val = order_data.get("store_name", "")
++                    phone_val = order_data.get("phone")
++                    address_val = order_data.get("address")
++                    contact_val = order_data.get("contact_person")
++                    shipper_name_val = order_data.get("customer_company", "")
++
+                 if confirmed_store:
+                     store_info = confirmed_store
++                    # v5.9.0 Phase 1：emit 门店已确认事件（单门店版）
++                    if _HAS_EVENT_BUS:
++                        EventBus.emit("store_confirmed", {
++                            "session_id": order_session_id,
++                            "timestamp": time.time(),
++                            "store_name_submitted": store_name_val or order_data.get("store_name", ""),
++                            "selected_store": store_info,
++                            "from_candidates": bool(store_info.get("store_code")),
++                            "top_similarity": float(store_info.get("similarity", 1.0) or 1.0),
++                            "match_type": store_info.get("match_type", "unknown"),
++                            "user_response_text": "user_provided_confirmed_store",
++                        })
+                 else:
+                     store_info = _call_match_store(
+-                        store_name=order_data["store_name"],
+-                        customer_company=order_data.get("customer_company"),
++                        store_name=store_name_val,
++                        customer_company=shipper_name_val,
+                         db_config=self.db_config,
+-                        phone=order_data.get("phone"),
+-                        address=order_data.get("address"),
+-                        contact_person=order_data.get("contact_person"),
++                        phone=phone_val,
++                        address=address_val,
++                        contact_person=contact_val,
+                     )
+ 
+                     if not store_info:
+@@ -1744,6 +1933,25 @@ class OrderToHuadingTemplate:
+                         }
+                     # ⚠️ 不再自动确认：所有门店匹配都必须用户确认
+                     if store_info.get("need_confirm"):
++                        # v5.9.0 Phase 1：emit 门店需要确认事件（单门店版）
++                        if _HAS_EVENT_BUS:
++                            top_c = (store_info.get("candidates") or [{}])[0]
++                            top_sim = top_c.get("similarity", 0)
++                            EventBus.emit("store_confirm_needed", {
++                                "session_id": order_session_id,
++                                "timestamp": time.time(),
++                                "store_name_submitted": store_info.get("store_name_submitted", ""),
++                                "matched_store": {
++                                    "store_code": top_c.get("store_code", ""),
++                                    "store_name": top_c.get("store_name", ""),
++                                    "owner_code": top_c.get("owner_code", ""),
++                                },
++                                "candidates": store_info.get("candidates", []),
++                                "top_similarity": top_sim,
++                                "match_type": top_c.get("match_type", "unknown"),
++                                "match_layer": top_c.get("match_type", "unknown"),
++                                "need_customer_hint": False,
++                            })
+                         return {
+                             "success": False,
+                             "need_store_confirm": True,
+@@ -1761,7 +1969,7 @@ class OrderToHuadingTemplate:
+                         }
+ 
+                 owner_code = store_info.get("owner_code", self.shipper_id) if store_info else self.shipper_id
+-                sku_results, unmatched_items = self._match_sku(order_data["items"], owner_code)
++                sku_results, unmatched_items = object.__getattribute__(self, '_match_sku')(order_data["items"], owner_code)
+ 
+                 all_store_results.append({
+                     "store_info": store_info,
+@@ -1777,12 +1985,12 @@ class OrderToHuadingTemplate:
+                 if raw_order_no and raw_order_no not in ("unknown", "", "nan", "往来单位名称", "单据日期"):
+                     order_no_safe = raw_order_no.replace("/", "-").replace("\\", "-")
+                 else:
+-                    now_str = datetime.now().strftime("%Y%m%d-%H%M%S")
++                    now_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+                     order_no_safe = f"DH-O-{now_str}"
+                 output_file = os.path.join(self.output_dir, f"华鼎出库单_{order_no_safe}.xlsx")
+ 
+             # ========== 生成合并模板（所有门店写入同一个sheet）==========
+-            self._generate_multi_store_template(order_data, all_store_results, output_file)
++            object.__getattribute__(self, '_generate_multi_store_template')(order_data, all_store_results, output_file)
+ 
+             # ========== 同步到 media/outbound（供下载链接访问）==========
+             try:
+@@ -1804,7 +2012,7 @@ class OrderToHuadingTemplate:
+                     all_unmatched.append(it)
+ 
+             # ========== 生成汇总映射对照表 ==========
+-            review_data = self._generate_mapping_comparison_multi(
++            review_data = object.__getattribute__(self, '_generate_mapping_comparison_multi')(
+                 order_data=order_data,
+                 all_store_results=all_store_results,
+             )
+@@ -1813,7 +2021,7 @@ class OrderToHuadingTemplate:
+             store_names = ", ".join(r["store_name"] for r in all_store_results)
+ 
+             # ========== 格式化用户友好的返回消息 ==========
+-            friendly_msg = self._format_success_message(
++            friendly_msg = object.__getattribute__(self, '_format_success_message')(
+                 store_names=store_names,
+                 item_count=total_items,
+                 matched_count=total_items - total_unmatched,
+@@ -1847,6 +2055,43 @@ class OrderToHuadingTemplate:
+                 # 用户消息
+                 "message": friendly_msg
+             }
++            # v5.9.0 Phase 1：emit 订单完成事件（在 return 之前）
++            if _HAS_EVENT_BUS:
++                try:
++                    _elapsed_ms = int(time.time() * 1000) - _started_ms
++                    _first_store = (all_store_results[0] if all_store_results else {}).get("store_info", {}) or {}
++                    _total_skus = sum(len(r.get("sku_results") or []) for r in all_store_results)
++                    _auto_matched = sum(1 for r in all_store_results for s in (r.get("sku_results") or []) if (s.get("match_score") or 0) >= 0.9)
++                    EventBus.emit("order_complete", {
++                        "session_id": order_session_id,
++                        "timestamp": time.time(),
++                        "order_type": order_type,
++                        "store": {
++                            "store_code": _first_store.get("store_code", ""),
++                            "store_name": _first_store.get("store_name", ""),
++                            "owner_code": _first_store.get("owner_code", ""),
++                        },
++                        "sku_summary": {
++                            "total": _total_skus,
++                            "auto_matched": _auto_matched,
++                            "user_confirmed": 0,
++                            "user_corrected": 0,
++                            "unmatched": total_unmatched,
++                        },
++                        "match_rates": {
++                            "store_match_rate": 1.0 if confirmed_store else 0.0,
++                            "sku_match_rate": (_auto_matched / _total_skus) if _total_skus else 0.0,
++                        },
++                        "user_modified": False,
++                        "user_confirmed": not has_issues,
++                        "processing_time_ms": _elapsed_ms,
++                        "skill_version": self.__class__.VERSION if hasattr(self.__class__, 'VERSION') else "5.9.0",
++                        "owner_code": _first_store.get("owner_code", ""),
++                        "source_file": order_input if isinstance(order_input, str) else "",
++                        "output_file": output_file,
++                    })
++                except Exception as _e:
++                    print(f"[WARN] emit order_complete failed: {_e}", flush=True)
+ 
+         except Exception as e:
+             return {
+@@ -2075,7 +2320,7 @@ class OrderToHuadingTemplate:
+                             "store_code": row[0] or "",
+                             "store_name": row[1] or "",
+                             "warehouse_name": warehouse_name,
+-                            "warehouse_code": self._get_warehouse_code(warehouse_name),
++                            "warehouse_code": object.__getattribute__(self, '_get_warehouse_code')(warehouse_name),
+                             "address": row[3] or "",
+                             "contact_person": row[4] or "",
+                             "phone": row[5] or "",
+@@ -2126,7 +2371,7 @@ class OrderToHuadingTemplate:
+                                     "store_code": row[0] or "",
+                                     "store_name": row[1] or "",
+                                     "warehouse_name": warehouse_name,
+-                                    "warehouse_code": self._get_warehouse_code(warehouse_name),
++                                    "warehouse_code": object.__getattribute__(self, '_get_warehouse_code')(warehouse_name),
+                                     "address": row[3] or "",
+                                     "contact_person": row[4] or "",
+                                     "phone": row[5] or "",
+@@ -2380,7 +2625,7 @@ class OrderToHuadingTemplate:
+                     "store_code": row[0] or "",
+                     "store_name": row[1] or "",
+                     "warehouse_name": warehouse_name,
+-                    "warehouse_code": self._get_warehouse_code(warehouse_name),
++                    "warehouse_code": object.__getattribute__(self, '_get_warehouse_code')(warehouse_name),
+                     "address": row[3] or "",
+                     "contact_person": row[4] or "",
+                     "phone": row[5] or "",
+@@ -2399,7 +2644,7 @@ class OrderToHuadingTemplate:
+                     "store_code": row[0] or "",
+                     "store_name": row[1] or "",
+                     "warehouse_name": warehouse_name,
+-                    "warehouse_code": self._get_warehouse_code(warehouse_name),
++                    "warehouse_code": object.__getattribute__(self, '_get_warehouse_code')(warehouse_name),
+                     "address": row[3] or "",
+                     "contact_person": row[4] or "",
+                     "phone": row[5] or "",
+@@ -2425,7 +2670,7 @@ class OrderToHuadingTemplate:
+                         "store_code": row[0] or "",
+                         "store_name": row[1] or "",
+                         "warehouse_name": warehouse_name,
+-                        "warehouse_code": self._get_warehouse_code(warehouse_name),
++                        "warehouse_code": object.__getattribute__(self, '_get_warehouse_code')(warehouse_name),
+                         "address": row[3] or "",
+                         "contact_person": row[4] or "",
+                         "phone": row[5] or "",
+@@ -2654,7 +2899,7 @@ class OrderToHuadingTemplate:
+         注意：这里的"商品"是指系统SKU，同一个商品可能对应多个系统SKU
+         （如原味晶球有袋装和箱装两种规格），需要按ratio判断单位类型。
+         """
+-        return self._get_sku_unit_info(sku_code, owner_code)["unit_type"]
++        return object.__getattribute__(self, '_get_sku_unit_info')(sku_code, owner_code)["unit_type"]
+ 
+     
+     def _generate_mapping_comparison(self, order_data: Dict, store_info: Dict,
+@@ -3013,6 +3258,15 @@ class OrderToHuadingTemplate:
+                 })
+             
+             if modifications:
++                # v5.9.0 Phase 1：emit 用户修改事件
++                if _HAS_EVENT_BUS:
++                    EventBus.emit("user_modified", {
++                        "session_id": getattr(self, '_current_session_id', 'unknown'),
++                        "timestamp": time.time(),
++                        "modifications": modifications,
++                        "modification_count": len(modifications),
++                        "user_response_text": user_message,
++                    })
+                 return {
+                     "action": "modify",
+                     "modifications": modifications,
+@@ -3062,7 +3316,7 @@ class OrderToHuadingTemplate:
+                     if field == "unit_type" and item["matched"]:
+                         # 单位类型修改需要重新获取华鼎单位
+                         sku_code = item["sku_code"]
+-                        unit_info = self._get_sku_unit_info(sku_code, owner_code)
++                        unit_info = object.__getattribute__(self, '_get_sku_unit_info')(sku_code, owner_code)
+                         item["unit_type"] = new_value
+                         item["huading_unit"] = unit_info["unit"]
+                     elif field in item:
+@@ -3074,7 +3328,7 @@ class OrderToHuadingTemplate:
+                         if field == "unit_type" and item["matched"]:
+                             # 单位类型修改需要重新获取华鼎单位
+                             sku_code = item["sku_code"]
+-                            unit_info = self._get_sku_unit_info(sku_code, owner_code)
++                            unit_info = object.__getattribute__(self, '_get_sku_unit_info')(sku_code, owner_code)
+                             item["unit_type"] = new_value
+                             item["huading_unit"] = unit_info["unit"]
+                         elif field in item:
+@@ -3153,7 +3407,7 @@ class OrderToHuadingTemplate:
+         if store_info:
+             warehouse_code = store_info.get("warehouse_code", "")
+             if not warehouse_code and store_info.get("warehouse_name"):
+-                warehouse_code = self._get_warehouse_code(store_info.get("warehouse_name", ""))
++                warehouse_code = object.__getattribute__(self, '_get_warehouse_code')(store_info.get("warehouse_name", ""))
+         
+         # 如果仓库编码仍然为空，报错（这是严重错误）
+         if not warehouse_code:
+diff --git a/tools/_sku_mapper.py b/tools/_sku_mapper.py
+index 2b7136a..5d1c535 100644
+--- a/tools/_sku_mapper.py
++++ b/tools/_sku_mapper.py
+@@ -465,6 +465,7 @@ def _build_result(row: tuple, confidence: float, original_product_name: str = ""
+         "product_spec": row[5] or "",
+         "unit_original": row[2],
+         "original_product_name": original_product_name,
++        "product_name": original_product_name,
+     }
+ 
+ 

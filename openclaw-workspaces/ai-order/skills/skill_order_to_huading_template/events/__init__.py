@@ -1,5 +1,7 @@
 """
-events/ — 事件总线（自v5.9.0 Phase 1 引入）
+events/ — shim（向后兼容）
+
+实际实现已移至工作区级 events/。
 """
 from .bus import EventBus
 

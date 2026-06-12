@@ -99,11 +99,11 @@ User: agenthub
 - 提到"之前说过" → 读 `MEMORY.md`
 
 **每次结束会话时必须执行：**
-1. 执行 `memory/SESSION_END_PROTOCOL.md`
+1. 执行 `memory_system/protocols/SESSION_END_PROTOCOL.md`
 2. 更新 `MEMORY.md`「最近会话摘要」
 3. 更新 `projects/<项目>/sessions/` + `skills/INDEX.md`
 
-**参考：** `memory/SESSION_START_PROTOCOL.md`、`memory/SESSION_END_PROTOCOL.md`、`memory/projects/PROJECT_TEMPLATE.md`
+**参考：** `memory_system/protocols/SESSION_START_PROTOCOL.md`、`memory_system/protocols/SESSION_END_PROTOCOL.md`、`memory_system/templates/PROJECT_TEMPLATE.md`
 
 ---
 

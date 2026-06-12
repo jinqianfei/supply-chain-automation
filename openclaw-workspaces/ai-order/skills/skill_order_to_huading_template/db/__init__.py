@@ -1,1 +1,56 @@
-# db package
+# db package - 数据库连接与查询管理
+
+from db.connection import (
+    get_default_db_config,
+    get_connection,
+    DBConnection,
+    _load_dotenv_to_environ,
+)
+
+from db.queries import (
+    # 门店匹配
+    STORE_FIND_BY_NAME,
+    STORE_GET_BY_CODE,
+    STORE_GET_BY_OWNER,
+    STORE_FIND_BY_PHONE,
+    STORE_SEARCH_CODES_BY_KEYWORD,
+    STORE_GET_BY_CODES,
+    STORE_EXACT_MATCH,
+    STORE_FUZZY_MATCH,
+    STORE_KEYWORD_MATCH,
+    STORE_BY_OWNER_CODE,
+    STORE_BY_OWNER_CODE_MULTI,
+    STORE_FIND_OWNER_BY_WAREHOUSE,
+    STORE_BY_WAREHOUSE_AND_OWNER,
+    # 货主/客户
+    CUSTOMER_GET_BY_ID,
+    CUSTOMER_SEARCH_BY_NAME,
+    CUSTOMER_COMPANY_MATCH,
+    CUSTOMER_BRAND_MATCH,
+    CUSTOMER_BRAND_MATCH_NO_LIMIT,
+    CUSTOMER_GET_BY_IDS,
+    CUSTOMER_ALL_ACTIVE,
+    # SKU 匹配
+    SKU_ALIAS_EXACT,
+    SKU_EXACT_MATCH,
+    SKU_FUZZY_MATCH,
+    SKU_LOAD_ALL_ACTIVE,
+    SKU_LOAD_ALL_ACTIVE_NO_LIMIT,
+    SKU_KEYWORD_MATCH,
+    SKU_ALIAS_LOAD_ALL,
+    SKU_GET_BY_CODE_AND_OWNER,
+    SKU_GET_SAME_NAME,
+    # 仓库编码
+    WAREHOUSE_GET_CODE,
+    WAREHOUSE_LOAD_ALL,
+)
+
+from db.table_names import (
+    SKU_TABLE,
+    WAREHOUSE_TABLE,
+    ALIAS_TABLE,
+    STORE_TABLE,
+    ACTIVE_STATUS,
+    SKU_CACHE_LIMIT,
+    SKU_MATCH_LIMIT,
+)

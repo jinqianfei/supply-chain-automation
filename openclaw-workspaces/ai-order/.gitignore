@@ -1,0 +1,31 @@
+# 敏感文件（绝不提交）
+.env
+.env.bak*
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# 临时输出
+output/*.xlsx
+output/*.tar.gz
+output/*.zip
+output/sync_logs/
+
+# macOS
+.DS_Store
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+
+# 迁移记录（每个环境独立）
+.migration_last_run

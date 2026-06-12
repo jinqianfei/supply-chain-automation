@@ -9,7 +9,7 @@
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>/bin/bash "$AI_ORDER_WORKSPACE/scripts/phase3_maintenance.sh"</string>
+        <string>/bin/bash "$AI_ORDER_WORKSPACE/ops/phase3_maintenance.sh"</string>
     </array>
 
     <!-- 每周日 03:00 触发 -->
@@ -33,7 +33,7 @@
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
         <key>AI_ORDER_WORKSPACE</key>
-        <string>/Users/jinqianfei/openclaw-workspaces/ai-order</string>
+        <string>__WORKSPACE__</string>
     </dict>
 
     <key>ExitTimeOut</key>

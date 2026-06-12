@@ -1,0 +1,23 @@
+{
+  "version": "2.0",
+  "name": "ai-order",
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "neo",
+    "user": "jinqianfei",
+    "password": ""
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6380,
+    "password": "openclaw123",
+    "db": 0
+  },
+  "llm": {
+    "provider": "qwen-portal",
+    "api_key": "sk-1cd7d3fef7b646db8e1de00014f5bab4",
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "model": "qwen3.7-max"
+  }
+}

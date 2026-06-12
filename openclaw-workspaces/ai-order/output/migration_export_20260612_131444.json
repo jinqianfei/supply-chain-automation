@@ -1,0 +1,31 @@
+{
+  "export_time": "2026-06-12T13:14:59.984988",
+  "source": "agenthub-db.cjys0msc4x8s.ap-southeast-1.rds.amazonaws.com:5432/neo",
+  "tables": {
+    "product_sku": 1832,
+    "product_name_alias": 30,
+    "store_list": 3327,
+    "warehouse_code_mapping": 113,
+    "customer": 873,
+    "order_feedback": 19,
+    "order_corrections": 0,
+    "layer_success_rate": 14,
+    "bill_audit_record": 0,
+    "bill_summary": 0,
+    "contract_parse_record": 0,
+    "contract_rule_history": 0,
+    "customer_alias_mapping": 0,
+    "customer_contract_rules": 0,
+    "customer_sku_mapping": 0,
+    "customer_warehouse_mapping": 0,
+    "match_history": 0,
+    "operation_log": 0,
+    "order_field_mapping": 0,
+    "order_task": 0,
+    "order_template_config": 0,
+    "pending_mapping_task": 0,
+    "product": 1768
+  },
+  "total_tables": 23,
+  "total_rows": 7976
+}

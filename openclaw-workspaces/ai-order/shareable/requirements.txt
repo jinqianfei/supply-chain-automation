@@ -1,0 +1,16 @@
+# skill_order_to_huading_template v5.11.1 依赖
+# Python >= 3.10
+
+# 数据库
+psycopg2-binary>=2.9.0
+
+# Excel / 数据处理
+openpyxl>=3.1.0
+pandas>=2.0.0
+
+# LLM 调用（可选，如使用 OpenAI/MiniMax API）
+requests>=2.30.0
+pyyaml>=6.0
+
+# Word 文档（可选）
+python-docx>=1.0.0
