@@ -8,7 +8,7 @@
 #   3. 4W 质量检查（check_memory_quality.py --strict）
 #
 # 触发：launchd 每周日 03:00
-#   0 3 * * 0 /Users/jinqianfei/openclaw-workspaces/ai-order/scripts/phase3_maintenance.sh
+#   0 3 * * 0 $WORKSPACE/scripts/phase3_maintenance.sh
 #
 # 用法：
 #   bash scripts/phase3_maintenance.sh          # 跑全套

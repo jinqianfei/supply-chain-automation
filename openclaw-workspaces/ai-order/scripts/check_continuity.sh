@@ -17,7 +17,7 @@
 
 set -e
 
-WORKSPACE="${WORKSPACE:-/Users/jinqianfei/openclaw-workspaces/ai-order}"
+WORKSPACE="${AI_ORDER_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 MEMORY_DIR="$WORKSPACE/memory"
 WARN_HOURS="${WARN_HOURS:-24}"
 P0_HOURS="${P0_HOURS:-72}"

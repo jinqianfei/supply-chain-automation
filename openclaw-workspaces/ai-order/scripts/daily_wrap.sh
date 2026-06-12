@@ -9,7 +9,7 @@
 #   4. 更新 MEMORY.md "最后更新" 时间戳
 #
 # 触发：crontab 每天 10:00
-#   0 10 * * * /Users/jinqianfei/openclaw-workspaces/ai-order/scripts/daily_wrap.sh
+#   0 10 * * * $WORKSPACE/scripts/daily_wrap.sh
 #
 # 自定义：
 #   bash scripts/daily_wrap.sh                  # 总结昨天
@@ -19,7 +19,7 @@
 
 set -e
 
-WORKSPACE="${WORKSPACE:-/Users/jinqianfei/openclaw-workspaces/ai-order}"
+WORKSPACE="${AI_ORDER_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 SCRIPTS_DIR="$WORKSPACE/scripts"
 MEMORY_DIR="$WORKSPACE/memory"
 MEMORY_MD="$WORKSPACE/MEMORY.md"

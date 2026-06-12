@@ -123,18 +123,31 @@ def test_sku_mapping_requires_confirmation_before_template_generation() -> None:
     object.__setattr__(skill, "_generate_multi_store_template", lambda *_args, **_kwargs: generated.update(called=True))
     object.__setattr__(skill, "_match_sku", lambda items, _owner_code: ([], [items[0]]))
 
-    result = skill.execute(
-        order_input="ignored",
-        order_type="text",
-        order_data_cache=order_data,
-        confirmed_store={
-            "_store_key": "门店A",
+    # v5.15.2: confirmed_store 路径会调 _call_match_store 做对比，需要 mock
+    original_match_store = skill_module._call_match_store
+    try:
+        skill_module._call_match_store = lambda **_kwargs: {
             "store_code": "A001",
             "store_name": "门店A-确认",
             "owner_code": "OWNER-A",
+            "similarity": 1.0,
             "match_type": "exact",
-        },
-    )
+        }
+
+        result = skill.execute(
+            order_input="ignored",
+            order_type="text",
+            order_data_cache=order_data,
+            confirmed_store={
+                "_store_key": "门店A",
+                "store_code": "A001",
+                "store_name": "门店A-确认",
+                "owner_code": "OWNER-A",
+                "match_type": "exact",
+            },
+        )
+    finally:
+        skill_module._call_match_store = original_match_store
 
     assert result["need_sku_confirm"], result
     assert not generated["called"], result

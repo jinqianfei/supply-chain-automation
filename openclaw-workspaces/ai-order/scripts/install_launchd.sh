@@ -57,7 +57,7 @@ case "${1:-install}" in
 
   test)
     echo "🧪 立即跑一次 daily_wrap.sh（不等待 10:00）"
-    bash /Users/jinqianfei/openclaw-workspaces/ai-order/scripts/daily_wrap.sh
+    bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/daily_wrap.sh"
     ;;
 
   *)

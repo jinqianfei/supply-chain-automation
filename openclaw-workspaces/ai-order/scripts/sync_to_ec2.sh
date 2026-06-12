@@ -7,7 +7,7 @@
 EC2_HOST="13.212.17.85"
 EC2_USER="ec2-user"
 EC2_KEY="~/.ssh/openclaw-ec2.pem"
-LOCAL_DIR="/Users/jinqianfei/openclaw-workspaces/ai-order"
+LOCAL_DIR="${AI_ORDER_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 REMOTE_DIR="/home/ec2-user/ai-order"
 
 SSH_CMD="ssh -o StrictHostKeyChecking=no -i $EC2_KEY"
