@@ -85,8 +85,8 @@ CREATE TABLE IF NOT EXISTS layer_success_rate (
     success_count INT DEFAULT 0,
     auto_success_count INT DEFAULT 0,
     user_corrected_count INT DEFAULT 0,
-    success_rate FLOAT DEFAULT 0 CHECK (success_rate >= 0 AND success_rate <= 1),
-    avg_match_score FLOAT DEFAULT 0,
+    success_rate NUMERIC(6,4) DEFAULT 0 CHECK (success_rate >= 0 AND success_rate <= 1),
+    avg_match_score NUMERIC(10,4) DEFAULT 0,
     updated_at TIMESTAMP DEFAULT NOW(),
     UNIQUE (entity_type, layer_name)
 );

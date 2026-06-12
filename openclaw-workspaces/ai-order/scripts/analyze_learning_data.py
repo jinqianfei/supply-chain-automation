@@ -145,7 +145,7 @@ def analyze_threshold_tuning():
               COUNT(*) as total,
               SUM(CASE WHEN auto_matched THEN 1 ELSE 0 END) as confirmed,
               SUM(CASE WHEN NOT auto_matched THEN 1 ELSE 0 END) as corrected,
-              ROUND(SUM(CASE WHEN NOT auto_matched THEN 1 ELSE 0 END)::FLOAT / NULLIF(COUNT(*), 0) * 100, 2) as correction_rate
+              ROUND((SUM(CASE WHEN NOT auto_matched THEN 1 ELSE 0 END)::NUMERIC / NULLIF(COUNT(*), 0) * 100)::NUMERIC, 2) as correction_rate
             FROM order_corrections
             WHERE created_at >= CURRENT_DATE - INTERVAL '%s days'
             GROUP BY match_layer
