@@ -4,7 +4,21 @@ import os
 import sys
 from pathlib import Path
 
-WORKSPACE = Path("/Users/jinqianfei/openclaw-workspaces/ai-order")
+def _detect_workspace():
+    env_ws = os.environ.get("AI_ORDER_WORKSPACE")
+    if env_ws and os.path.isdir(env_ws):
+        return Path(env_ws)
+    script_dir = Path(__file__).resolve().parent
+    for parent in script_dir.parents:
+        if (parent / "skills" / "skill_order_to_huading_template").is_dir() and (parent / ".env").exists():
+            return parent
+    for parent in script_dir.parents:
+        if (parent / "skills").is_dir():
+            return parent
+    return Path.cwd()
+
+
+WORKSPACE = _detect_workspace()
 SKILL_DIR = WORKSPACE / "skills" / "skill_order_to_huading_template"
 sys.path.insert(0, str(SKILL_DIR))
 sys.path.insert(0, str(WORKSPACE))
