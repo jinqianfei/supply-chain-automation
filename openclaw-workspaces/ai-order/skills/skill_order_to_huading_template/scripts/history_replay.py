@@ -19,7 +19,25 @@ import traceback
 from pathlib import Path
 
 # ── 路径 & .env ──
-WORKSPACE = Path("/Users/jinqianfei/openclaw-workspaces/ai-order")
+def _detect_workspace() -> Path:
+    """自动检测工作区根目录（无硬编码路径）"""
+    # 1. 环境变量覆盖
+    env_ws = os.environ.get("AI_ORDER_WORKSPACE")
+    if env_ws and os.path.isdir(env_ws):
+        return Path(env_ws)
+    # 2. 从脚本位置向上查找（scripts/ → skill → skills/ → workspace）
+    script_dir = Path(__file__).resolve().parent
+    for parent in script_dir.parents:
+        if (parent / "skills" / "skill_order_to_huading_template").is_dir() and (parent / ".env").exists():
+            return parent
+    # 3. 仅凭 skills 目录判断
+    for parent in script_dir.parents:
+        if (parent / "skills").is_dir():
+            return parent
+    # 4. 兜底：CWD
+    return Path.cwd()
+
+WORKSPACE = _detect_workspace()
 SKILL_DIR = WORKSPACE / "skills" / "skill_order_to_huading_template"
 sys.path.insert(0, str(SKILL_DIR))
 sys.path.insert(0, str(WORKSPACE))
