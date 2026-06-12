@@ -310,11 +310,33 @@ def match_store(store_name: str, customer_company: str = None,
     if contact_person and contact_person != store_name and len(contact_person) >= 2:
         # 尝试用 contact_person 重新搜索门店（忽略 Layer 0/1/2，直接 Layer 3）
         # 如果手机号存在，优先用手机号
+        # v5.15.4 fix: 处理多门店共用手机号场景
         if phone:
             by_phone = _find_by_phone(phone, db_config)
             if by_phone:
-                return _build_store_result(by_phone, "phone_exact",
-                                            f"手机号精确匹配（{phone}，contact_person兜底）", db_config)
+                if isinstance(by_phone, dict) and by_phone.get("_multi"):
+                    # 多门店共用手机号 → 按门店名相似度排序，取最佳
+                    stores = by_phone["stores"]
+                    scored = []
+                    for s in stores:
+                        sim = SequenceMatcher(None, store_name, s["store_name"]).ratio()
+                        scored.append((sim, s))
+                    scored.sort(key=lambda x: x[0], reverse=True)
+                    best_sim, best_store = scored[0]
+                    if best_sim >= 0.8:
+                        return _build_store_result(best_store, "phone_exact_high_conf",
+                                                   f"手机号+门店名双重匹配（{phone}，contact_person兜底，{best_sim:.0%}）", db_config)
+                    else:
+                        result = _build_store_result(best_store, "phone_exact_multi",
+                                                     f"手机号匹配+门店名待确认（{phone}，contact_person兜底，{best_sim:.0%}）", db_config)
+                        result["need_confirm"] = True
+                        result["candidates"] = [_build_store_result(s, "phone_exact_multi",
+                                                     f"{phone}，{sim:.0%}", db_config)
+                                                for sim, s in scored if sim >= 0.5]
+                        return result
+                else:
+                    return _build_store_result(by_phone, "phone_exact",
+                                                f"手机号精确匹配（{phone}，contact_person兜底）", db_config)
         # 尝试用地址关键词匹配
         if address:
             addr_result = _match_by_address_keyword(address, db_config)
