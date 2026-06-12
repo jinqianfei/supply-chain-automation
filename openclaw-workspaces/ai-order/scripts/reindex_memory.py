@@ -37,7 +37,21 @@ from pathlib import Path
 from datetime import datetime
 
 
-WORKSPACE = Path("/Users/jinqianfei/openclaw-workspaces/ai-order")
+def _detect_workspace() -> Path:
+    """自动检测工作区根目录（无硬编码路径）"""
+    env_ws = os.environ.get("AI_ORDER_WORKSPACE")
+    if env_ws and os.path.isdir(env_ws):
+        return Path(env_ws)
+    script_dir = Path(__file__).resolve().parent
+    for parent in script_dir.parents:
+        if (parent / "skills" / "skill_order_to_huading_template").is_dir() and (parent / ".env").exists():
+            return parent
+    for parent in script_dir.parents:
+        if (parent / "skills").is_dir():
+            return parent
+    return Path.cwd()
+
+WORKSPACE = _detect_workspace()
 INDEX_DIR = WORKSPACE / ".memory_index"
 
 # 索引范围

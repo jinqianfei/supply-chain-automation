@@ -7,8 +7,9 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
-        <string>/Users/jinqianfei/openclaw-workspaces/ai-order/scripts/daily_alias_summary.py</string>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>/usr/bin/python3 "$AI_ORDER_WORKSPACE/scripts/daily_alias_summary.py"</string>
     </array>
 
     <!-- 每天 10:00 触发（独立于日报） -->
@@ -26,15 +27,13 @@
     <key>StandardErrorPath</key>
     <string>/tmp/ai-order.daily-alias-summary.err.log</string>
 
-    <!-- 工作目录 -->
-    <key>WorkingDirectory</key>
-    <string>/Users/jinqianfei/openclaw-workspaces/ai-order</string>
-
-    <!-- 环境变量（从 .env 加载 DB 配置） -->
+    <!-- 环境变量 -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>AI_ORDER_WORKSPACE</key>
+        <string>/Users/jinqianfei/openclaw-workspaces/ai-order</string>
     </dict>
 </dict>
 </plist>

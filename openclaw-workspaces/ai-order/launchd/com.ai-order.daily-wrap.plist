@@ -8,7 +8,8 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/jinqianfei/openclaw-workspaces/ai-order/scripts/daily_wrap.sh</string>
+        <string>-c</string>
+        <string>/bin/bash "$AI_ORDER_WORKSPACE/scripts/daily_wrap.sh"</string>
     </array>
 
     <!-- 每天 10:00 触发（金姐指定：总结昨天数据） -->
@@ -26,15 +27,13 @@
     <key>StandardErrorPath</key>
     <string>/tmp/ai-order.daily-wrap.err.log</string>
 
-    <!-- 工作目录 -->
-    <key>WorkingDirectory</key>
-    <string>/Users/jinqianfei/openclaw-workspaces/ai-order</string>
-
     <!-- 环境变量 -->
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>AI_ORDER_WORKSPACE</key>
+        <string>/Users/jinqianfei/openclaw-workspaces/ai-order</string>
     </dict>
 
     <!-- 进程退出码 0 = OK，非 0 = 失败（不重试） -->

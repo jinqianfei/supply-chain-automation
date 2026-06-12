@@ -1,73 +1,69 @@
 # PENDING — 未完成事项
 
-**最后更新：** 2026-06-10 10:38 GMT+8
+**最后更新：** 2026-06-12 10:32 GMT+8
 
 ---
 
-## 🔴 P1 — 多门店 + 单 confirmed_store 行为错误
+## ✅ 已完成 — P1 多门店 confirmed_store bug（v5.15.2 修复）
 
 **发现时间**：2026-06-10
-**复现命令**：
-```bash
-cd /Users/jinqianfei/openclaw-workspaces/ai-order
-echo "0" | python3 tests/manual_e2e.py 2
-# 第 1 次 execute 返回 2 个门店（天津塘沽万达 + 北京天宫院）
-# 用户只传 1 个 confirmed_store（塘沽万达）
-# 第 2 次 execute 返回 success=True，store_names 正确显示 2 个
-# 但 Excel 11 行**全部**用 KH2025072100075（塘沽万达的 store_code）
-```
+**修复时间**：2026-06-12（v5.15.2）
 
-**根因**（位置：`__init__.py` line 1785-1797）：
-```python
-if confirmed_store:
-    si = confirmed_store  # ⚠️ 用同一个 confirmed_store 处理所有门店
-```
+**原问题**：
+- 多门店场景 + 单 confirmed_store → 第 2 门店 store_code 错用第 1 门店
+- 位置：`__init__.py` line 1785-1797
 
-**期望行为**：
-- 多门店场景：传 `confirmed_stores: Dict[store_key, store_info]`
-- 缺失某门店确认时：返回 `need_store_confirm: True` for that store
-- 或：保留单 `confirmed_store` 但仅对单门店订单生效
+**修复内容**：
+- 新增 `_call_match_store` 对比逻辑
+- 用户选的 ≠ 系统匹配时才 emit `store_corrected`
+- 单门店 + 多门店两条路径都修复
+- v5.12.0 首次修复 → v5.15.2 进一步完善（store_corrected 误触发修复）
 
-**影响范围**：
-- 单门店订单：✅ 不受影响
-- 多门店订单：❌ 第 2 起门店的 store_code 错用第 1 个
-
-**建议方案**（v5.12.0 候选）：
-1. 把 `execute()` 的 `confirmed_store` 参数改 `confirmed_stores: Dict[store_key, Dict]`
-2. 多门店循环内按 store_key 查 confirmed_stores
-3. 未确认的门店返回 need_store_confirm + 已确认门店的部分结果
-
-**预计工作量**：30 分钟（含测试）
+**状态**：✅ 已修复 + 测试通过
 
 ---
 
-## 🟡 P2 — 4 个 git tag 未推 remote（含 v5.12.0）
+## 🟡 P2 — 自学习闭环需要数据积累
 
-**发现时间**：2026-06-10（持续 blocker）
+**发现时间**：2026-06-12
+**当前状态**：等待数据积累
 
-**现状**（2026-06-10 12:13 确认）：
-```bash
-$ git tag -l
-v5.9.0-baseline
-v5.11.0
-v5.11.2
-v5.12.0
-# 全部本地，未推 remote
-```
+**问题**：
+- `order_corrections` 表 0 条数据
+- 原因：19 单全是单门店，用户从未纠正过（真实数据）
+- 自学习闭环（采集→分析→改进）需要纠正数据才能触发分析→改进循环
 
-**为何不推**：
-- skill 的 git repo（`skills/skill_order_to_huading_template/.git`）**没有任何 remote 配置**
-- 父级 `/Users/jinqianfei` 仓库的 remote 是 `github/jinqianfei/supply-chain-automation` 和 `huggingface/jinqianfei/green-light-go`（不是 skill 专属）
-- 金姐未明确指定 push 目标
+**当前可做的**：
+- ✅ 采集器 10/10 事件全覆盖
+- ✅ 分析脚本就绪（analyze_learning_data.py + accuracy_comparison.py）
+- ✅ 历史回放脚本就绪（history_replay.py）
+- ⏳ 等待真实用户纠正数据积累
 
-**待金姐决定**（3 选 1）：
-- **B-1**：给 skill 加 github remote（需 URL + token）→ 我推 4 tag
-- **B-2**：tag 留本地（当前默认）→ 已记入本文件
-- **B-3**：把 skill git 合并到父级 `/Users/jinqianfei` 仓库
+**触发条件**：用户纠正门店/SKU 匹配时自动写入 order_corrections
 
-**风险**：不推 remote → 其他机器 / 协作者看不到 tag + commit
+**预计**：当累积 ≥ 10 条纠正数据时，可首次运行分析脚本生成改进建议
 
-**应急方案**：如需立即在其他机器使用，可 `git clone /Users/jinqianfei/openclaw-workspaces/ai-order/skills/skill_order_to_huading_template` 本地拷贝
+---
+
+## 🟡 P2 — 记忆模块 Phase 4（自治）未开始
+
+**发现时间**：2026-06-12
+**当前状态**：pending
+
+**Phase 1~3 状态**：
+- ✅ Phase 1：事件总线 + 反馈采集器（v5.9.0）
+- ✅ Phase 2：日结脚本 + launchd 定时器 + 启动自检
+- ✅ Phase 3：脚本已就绪（memory quality check / reindex / extract）
+
+**Phase 4（自治）目标**：
+- AI 自动执行 session start/end 协议
+- AI 自动检测断档并补写日志
+- AI 自动更新 PROJECT.md / PENDING.md
+- 减少人工干预（金姐不需要手动触发）
+
+**预计工作量**：2~3 天（需要重新设计 AI 行为协议）
+
+**触发条件**：金姐决定启动时执行
 
 ---
 
@@ -99,42 +95,11 @@ v5.12.0
 5. `RETURNING id`（1处）：`learn/collector.py:264`
 6. GIN trgm 索引（数据库层面，不在代码里）
 
-**改造工作量评估**：
-1. `db/connection.py` 加驱动抽象层（psycopg2 / pymysql 自动切换）：0.5 天
-2. 6 处 `psycopg2.connect()` 改为抽象连接：0.5 天
-3. `ANY(%s)` → `IN (...)`：10 分钟
-4. `learn/` 模块的 3 处 PG 语法：1 小时
-5. `learn/schema.sql` 加 MySQL 版本：1 小时
-6. 测试验证：0.5 天
-7. **合计：约 2 天**
-
-**不需要改的部分**：
-- 核心业务 SQL（95%+）都是标准 SQL（SELECT/WHERE/ORDER BY/LIKE/INSERT/UPDATE）
-- 参数化查询 `%s` 占位符（MySQL 的 pymysql 也用 `%s`）
+**改造工作量评估**：约 2 天
 
 **实施建议**：
 - 优先级：P2（当前 PostgreSQL 运行正常，无紧迫需求）
 - 触发条件：金姐决定部署到 MySQL 环境时再执行
-- 预估版本：v5.14.0 或 v5.15.0
-
----
-
-## ✅ 已完成（本次会话）
-
-- [x] 5 个版本 5 commit 提交（v5.9.0 / 5.11.0 / 5.11.1 / 5.11.2 / 5.10.0 文档补）
-- [x] git tag v5.11.2 + 修 v5.11.0 tag
-- [x] 完整代码审计（9 文件 ~6000 行）
-- [x] 写 `tests/manual_e2e.py` 手动测试脚本
-- [x] 端到端真实订单回归（#1 洪洪通 + #2 天津仓 = 12/12 GT 准确率）
-- [x] v5.11.1 quantity 修复验证（多门店场景也生效）
-- [x] daily log `memory/2026-06-10.md` 写完
-- [x] 主 `MEMORY.md` 最近会话摘要段更新
-- [x] `memory/projects/ai-order/PROJECT.md` 升级到 v5.11.2
-- [x] 本 PENDING.md 建立
-- [x] **P1 bug 修复**（v5.12.0 commit `1dfb57c`）：多门店 + 单 confirmed_store 正确处理
-- [x] **2 个新回归测试**：test_execute_confirmation_flow.py + test_execute_import_fallback.py
-- [x] **git tag v5.12.0** 打 tag → 1dfb57c
-- [x] 4 个 tag 状态更新到 PENDING.md（默认 B-2 留本地，等金姐决定）
 
 ---
 
@@ -151,7 +116,7 @@ v5.12.0
 
 **当前 AWS 架构**：
 - EC2 (13.212.17.85, 新加坡) + RDS PostgreSQL 18.3 (新加坡)
-- 数据库 15MB，23张表，5个 GIN trgm 索引
+- 数据库 15MB，23张表，7个 GIN trgm 索引
 - Cloudflare Tunnel 临时 URL
 
 **阿里云目标配置**：
@@ -160,21 +125,47 @@ v5.12.0
 - 同地域同 VPC，内网延迟 < 1ms
 - 总月费：¥330-500
 
-**执行步骤**：
-1. Phase 0: 购买 ECS + RDS（控制台操作）
-2. Phase 1: ECS 环境搭建（Node.js/Python/OpenClaw/cloudflared/Redis，~30min）
-3. Phase 2: pg_dump → pg_restore 数据库迁移（停机 < 5min）
-4. Phase 3: rsync 工作区同步 + .env 改 DB_HOST（~10min）
-5. Phase 4: 启动 Gateway + Cloudflare Tunnel（~10min）
-6. Phase 5: 端到端验证（~15min）
-7. Phase 6: 交付 + 7天观察期
-
-**需要金姐做的**：
-1. 购买阿里云 ECS + RDS PostgreSQL
-2. 提供 ECS IP + SSH 密码 + RDS 内网地址
-
-**关键兼容项**：
-- pg_trgm 扩展：阿里云 RDS PG 支持，需先 CREATE EXTENSION
-- PG 版本：当前 18.3 → 阿里云 16/17，pg_dump -F c 向下兼容
-
 **触发条件**：金姐决定迁移时启动
+
+---
+
+## 🟡 P2 — 记忆模块 P1~P6 修复收尾
+
+**发现时间**：2026-06-12
+**当前状态**：部分完成，需收尾
+
+**6-12 发现的 7 个问题**：
+1. P1: SESSION_END_PROTOCOL.md 未包含 v5.15.x 的新步骤
+2. P2: check_continuity.sh 断档检测阈值过宽
+3. P3: daily_wrap.sh 报告格式需更新
+4. P4: startup_check.py 缺少自学习模块检查
+5. P5: MEMORY_SYSTEM_PLAN.md Phase 4（自治）未开始
+6. P6: 记忆质量评分脚本 check_memory_quality.py 需优化
+7. P7: 部分文档交叉引用断链
+
+**状态**：P1~P6 并行执行中，部分已完成
+
+---
+
+## ✅ 已完成（历史）
+
+- [x] 5 个版本 5 commit 提交（v5.9.0 ~ v5.11.2 + v5.10.0 文档补）— 6-10
+- [x] git tag v5.9.0-baseline / v5.11.0 / v5.11.2 / v5.12.0 — 6-10
+- [x] 完整代码审计（9 文件 ~6000 行）— 6-10
+- [x] 端到端真实订单回归 12/12 GT 准确率 — 6-10
+- [x] P1 bug 修复（v5.12.0 commit `1dfb57c`）— 6-10
+- [x] 2 个新回归测试 — 6-10
+- [x] git push 到 github — 6-10
+- [x] 自学习模块 review + 补齐 6 个缺失 EventBus.emit — 6-11
+- [x] v5.13.3 修复：果糖末尾孤立分隔符 — 6-11
+- [x] CI 回归测试建立（53/53 全过）— 6-11
+- [x] v5.14.0 修复：单位匹配逻辑 — 6-11
+- [x] 端到端测试 85/85 = 100% 准确率 — 6-11
+- [x] 自学习闭环 review（方案标注虚高修正）— 6-12
+- [x] order_corrections 0 条诊断 — 6-12
+- [x] 补 3 个缺失组件（DB列 + history_replay + accuracy_comparison）— 6-12
+- [x] v5.15.2 发布（store_corrected 误触发修复）— 6-12
+- [x] 硬编码全修（P1~P4 + launchd plist × 3）— 6-12
+- [x] config/analysis_config.yaml 统一管理 8 处阈值 — 6-12
+- [x] 记忆模块方案 review（20 项扫描，7 个问题）— 6-12
+- [x] git push 成功（工作区 + skill 仓库 HTTPS）— 6-12
