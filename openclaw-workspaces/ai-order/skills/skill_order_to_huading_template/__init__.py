@@ -1921,6 +1921,20 @@ class OrderToHuadingTemplate:
                         si.setdefault("_store_key", store_key)
                         si.setdefault("store_name_submitted", store_name_for_match)
                         confirmed_stores[store_key] = si
+
+                        # v5.15.3 fix: 先跑系统匹配，判断是「确认」还是「纠正」
+                        _system_match = _call_match_store(
+                            store_name=store_name_for_match,
+                            customer_company=store_data.get("shipper_name", ""),
+                            db_config=self.db_config,
+                            phone=store_data.get("phone") or store_data.get("store_phone"),
+                            address=store_data.get("address") or store_data.get("store_address"),
+                            contact_person=store_data.get("contact_person"),
+                        )
+                        _system_store_code = (_system_match or {}).get("store_code", "") if isinstance(_system_match, dict) else ""
+                        _user_store_code = si.get("store_code", "")
+                        _is_correction = bool(_system_store_code and _user_store_code and _system_store_code != _user_store_code)
+
                         if _HAS_EVENT_BUS:
                             EventBus.emit("store_confirmed", {
                                 "session_id": order_session_id,
@@ -1932,13 +1946,17 @@ class OrderToHuadingTemplate:
                                 "match_type": si.get("match_type", "unknown"),
                                 "user_response_text": "user_provided_confirmed_store",
                             })
-                        # 自学习事件：门店纠正（用户从候选列表中选择或手动指定）
-                        if _HAS_EVENT_BUS:
+                        # 自学习事件：门店纠正（仅当用户选的门店 ≠ 系统匹配的门店时）
+                        if _is_correction and _HAS_EVENT_BUS:
                             try:
                                 EventBus.emit("store_corrected", {
                                     "session_id": order_session_id,
                                     "timestamp": time.time(),
                                     "store_name_submitted": store_name_for_match,
+                                    "original_match": {
+                                        "store_code": _system_store_code,
+                                        "store_name": (_system_match or {}).get("store_name", ""),
+                                    },
                                     "user_corrected_to": {
                                         "store_code": si.get("store_code", ""),
                                         "store_name": si.get("store_name", ""),
